@@ -1,0 +1,9 @@
+{
+  "snapshot_date": "2026-11-05",
+  "sources": {
+    "advisories.jsonl": "OSV API (api.osv.dev/v1/query + /v1/vulns/{id}), ecosystem PyPI; merged by alias; ranges from GHSA records when present",
+    "releases.jsonl": "PyPI JSON API (pypi.org/pypi/<package>/json)",
+    "docs_raw/": "Changelog files and release notes at the pinned commits in docs_raw/manifest.json; Pillow GitHub Releases"
+  },
+  "rebuild": "uv run python build/fetch_releases.py && uv run python build/fetch_advisories.py && uv run python build/fetch_changelogs.py (the last needs GITHUB_TOKEN)"
+}
