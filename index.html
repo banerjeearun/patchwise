@@ -4,220 +4,361 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>PatchWise</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
 <style>
 :root {
-  --bg: #f6f7f4; --panel: #ffffff; --ink: #1b1f1d; --muted: #5d6762; --line: #dfe3df;
-  --accent: #1f7a55; --accent-ink: #ffffff; --warn: #b4531a; --code: #eef1ee;
-  --lead: #1f7a55; --res: #2c5f9e; --wri: #7a4fa0;
+  --bg: #f7f6f2; --surface: #ffffff; --sunken: #efede6; --ink: #1d1c19; --ink-2: #57544c;
+  --ink-3: #8a867b; --line: #e2dfd6; --focus: #2f5bd3;
+  --bad: #b42318; --bad-bg: #fdecea; --mid: #a15c07; --mid-bg: #fdf3e2;
+  --ok: #17703f; --ok-bg: #e7f4ec; --none: #6b675e; --none-bg: #efede6;
+  --sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #121514; --panel: #1a1f1d; --ink: #e7ece9; --muted: #9aa6a0; --line: #2b3330;
-    --accent: #43b884; --accent-ink: #0d1a14; --warn: #e48a52; --code: #232a27;
-    --lead: #43b884; --res: #6fa2e3; --wri: #b892dc;
+    --bg: #151513; --surface: #1d1d1a; --sunken: #252521; --ink: #ecebe6; --ink-2: #b4b1a7;
+    --ink-3: #85827a; --line: #33322d; --focus: #7b9cff;
+    --bad: #ff8a7a; --bad-bg: #3a1d19; --mid: #f0b45a; --mid-bg: #352a17;
+    --ok: #6fd39b; --ok-bg: #17301f; --none: #a9a59b; --none-bg: #2a2925;
   }
 }
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--ink);
-  font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
-.wrap { max-width: 920px; margin: 0 auto; padding: 28px 16px 64px; }
-header h1 { margin: 0; font-size: 30px; letter-spacing: -0.02em; }
-header h1 span { color: var(--accent); }
-.tag { margin: 6px 0 0; font-size: 18px; color: var(--muted); }
-.grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 22px 0; }
-.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
-.card h3 { margin: 0 0 6px; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
-.card p, .card ol { margin: 0; }
-.card ol { padding-left: 18px; }
-.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-.chip { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--code);
-  padding: 2px 8px; border-radius: 99px; }
-.ask { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
-textarea { width: 100%; min-height: 120px; resize: vertical; border: 1px solid var(--line);
-  border-radius: 8px; padding: 10px 12px; background: var(--bg); color: var(--ink);
-  font: 14px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
-.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
-button { border: 1px solid var(--line); background: var(--panel); color: var(--ink);
-  border-radius: 8px; padding: 7px 12px; font: inherit; cursor: pointer; }
-button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
-button:disabled { opacity: .55; cursor: wait; }
-.ex { font-size: 13px; }
-.muted { color: var(--muted); font-size: 13px; }
-.thread { margin-top: 22px; display: flex; flex-direction: column; gap: 14px; }
-.msg { border-radius: 12px; padding: 14px 16px; border: 1px solid var(--line); background: var(--panel); overflow-wrap: anywhere; }
-.msg.user { background: var(--code); white-space: pre-wrap; font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
-.msg.clarify { border-left: 4px solid var(--warn); }
-.msg h3 { margin: 18px 0 6px; font-size: 17px; }
-.msg a { color: var(--accent); }
-.msg code { background: var(--code); padding: 1px 5px; border-radius: 4px; font-size: 13px; }
-.msg ul { padding-left: 20px; }
-details.trace { margin-top: 12px; border-top: 1px dashed var(--line); padding-top: 10px; }
-details.trace summary { cursor: pointer; color: var(--muted); font-size: 13px; }
-.lane { margin: 10px 0 0; }
-.lane b { font: 600 12px ui-monospace, Menlo, monospace; }
-.call { margin: 4px 0 0 12px; font: 12px/1.45 ui-monospace, Menlo, monospace; }
-.call details summary { cursor: pointer; }
-.call pre { white-space: pre-wrap; max-height: 260px; overflow: auto; background: var(--code);
-  padding: 8px; border-radius: 6px; margin: 4px 0 0; }
-.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
-.working { display: flex; gap: 10px; align-items: center; }
-.spin { width: 16px; height: 16px; border: 2px solid var(--line); border-top-color: var(--accent);
-  border-radius: 50%; animation: s 0.9s linear infinite; }
-@keyframes s { to { transform: rotate(360deg); } }
-footer { margin-top: 36px; color: var(--muted); font-size: 12px; }
-@media (max-width: 720px) { .grid { grid-template-columns: 1fr; } header h1 { font-size: 25px; } }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.55 var(--sans); }
+a { color: inherit; }
+code, .mono { font-family: var(--mono); font-size: 0.92em; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+.top { border-bottom: 1px solid var(--line); }
+.top .in { max-width: 980px; margin: 0 auto; padding: 14px 16px; display: flex; align-items: baseline;
+  justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.brand { font-weight: 600; font-size: 18px; letter-spacing: -0.01em; }
+.brand span { font-family: var(--mono); font-weight: 500; font-size: 12px; color: var(--ink-3); margin-left: 8px; }
+.meta { font-size: 13px; color: var(--ink-3); }
+.meta a { color: var(--ink-2); }
+
+main { max-width: 980px; margin: 0 auto; padding: 28px 16px 72px; }
+.lede { max-width: 640px; }
+.lede h1 { font-size: 26px; line-height: 1.25; font-weight: 600; letter-spacing: -0.015em; margin: 0 0 8px; }
+.lede p { margin: 0; color: var(--ink-2); }
+
+.composer { margin-top: 22px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+.tabs { display: flex; gap: 2px; padding: 8px 8px 0; flex-wrap: wrap; border-bottom: 1px solid var(--line); }
+.tab { border: 0; background: none; font: 500 13px var(--sans); color: var(--ink-2); padding: 7px 10px 9px;
+  cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.tab:hover { color: var(--ink); }
+.tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--ink); }
+.drop { position: relative; }
+textarea { display: block; width: 100%; min-height: 150px; resize: vertical; border: 0; background: transparent;
+  color: var(--ink); padding: 14px 16px; font: 14px/1.6 var(--mono); }
+textarea:focus { outline: none; }
+.drop.over::after { content: "Drop requirements.txt"; position: absolute; inset: 6px; display: grid; place-items: center;
+  border: 2px dashed var(--focus); border-radius: 8px; background: color-mix(in srgb, var(--surface) 85%, transparent);
+  font-weight: 500; color: var(--focus); }
+.bar { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-top: 1px solid var(--line); flex-wrap: wrap; }
+.bar .hint { font-size: 12.5px; color: var(--ink-3); margin-right: auto; }
+.btn { border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 7px;
+  padding: 7px 13px; font: 500 14px var(--sans); cursor: pointer; }
+.btn:hover { background: var(--sunken); }
+.btn.primary { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.btn.primary:hover { opacity: 0.88; }
+.btn:disabled { opacity: 0.5; cursor: progress; }
+.linkish { background: none; border: 0; padding: 0; font: inherit; color: var(--ink-2); text-decoration: underline;
+  text-underline-offset: 2px; cursor: pointer; }
+
+.covers { margin-top: 10px; font-size: 13px; color: var(--ink-3); }
+.covers code { color: var(--ink-2); }
+
+.thread { margin-top: 34px; display: flex; flex-direction: column; gap: 40px; }
+.turn { display: flex; flex-direction: column; gap: 14px; }
+.asked { font: 13px/1.55 var(--mono); color: var(--ink-2); white-space: pre-wrap; border-left: 2px solid var(--line);
+  padding: 2px 0 2px 12px; max-height: 9.5em; overflow: auto; }
+.label { font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); margin: 0 0 8px; }
+
+.verdicts { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.verdicts header { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; padding: 12px 16px 10px; flex-wrap: wrap; }
+.verdicts header .label { margin: 0; }
+.verdicts header small { color: var(--ink-3); font-size: 12.5px; }
+.scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: 14px; }
+th { text-align: left; font-weight: 500; font-size: 12.5px; color: var(--ink-3); padding: 8px 16px; border-top: 1px solid var(--line); }
+td { padding: 11px 16px; border-top: 1px solid var(--line); vertical-align: top; }
+td.pkg { font-family: var(--mono); white-space: nowrap; }
+td.num { font-variant-numeric: tabular-nums; }
+.state { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 500; padding: 2px 8px;
+  border-radius: 99px; white-space: nowrap; }
+.state::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.s-bad { color: var(--bad); background: var(--bad-bg); }
+.s-mid { color: var(--mid); background: var(--mid-bg); }
+.s-ok { color: var(--ok); background: var(--ok-bg); }
+.s-none { color: var(--none); background: var(--none-bg); }
+.ver { font-family: var(--mono); }
+.jump { font-size: 11.5px; color: var(--ink-3); margin-left: 6px; }
+.sub { display: block; font-size: 12.5px; color: var(--ink-3); margin-top: 2px; }
+
+.progress { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--ink-2); }
+.pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--focus); animation: p 1.2s ease-in-out infinite; }
+@keyframes p { 50% { opacity: 0.25; } }
+.progress .t { font-family: var(--mono); font-size: 12.5px; color: var(--ink-3); }
+
+.report { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 6px 22px 18px; overflow-wrap: anywhere; }
+.report h3 { font-family: var(--mono); font-size: 15px; font-weight: 500; margin: 22px 0 6px; padding-top: 16px; border-top: 1px solid var(--line); }
+.report h3:first-of-type { border-top: 0; padding-top: 0; }
+.report p:first-child { font-size: 16px; }
+.report ul { padding-left: 20px; }
+.report li { margin: 3px 0; }
+.report a[href] { color: var(--ink-2); text-decoration: none; font-family: var(--mono); font-size: 11.5px;
+  vertical-align: super; margin-left: 1px; }
+.report a[href]:hover { color: var(--focus); }
+.report ol a[href] { font-family: var(--sans); font-size: 13px; vertical-align: baseline; text-decoration: underline;
+  text-underline-offset: 2px; }
+.report ol { font-size: 13px; color: var(--ink-2); padding-left: 22px; }
+.report code { background: var(--sunken); padding: 1px 5px; border-radius: 4px; }
+.question { border-left: 3px solid var(--mid); background: var(--surface); border-radius: 0 10px 10px 0; padding: 12px 16px;
+  border-top: 1px solid var(--line); border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.question .label { color: var(--mid); }
+.error { color: var(--bad); }
+
+details.work summary { cursor: pointer; font-size: 13.5px; color: var(--ink-2); list-style: none; }
+details.work summary::before { content: "▸ "; color: var(--ink-3); }
+details.work[open] summary::before { content: "▾ "; }
+.lanes { display: grid; gap: 14px; margin-top: 12px; }
+.lane h4 { margin: 0 0 4px; font: 500 13px var(--mono); }
+.lane h4 small { font-family: var(--sans); font-weight: 400; color: var(--ink-3); margin-left: 6px; }
+.step { border-left: 1px solid var(--line); margin-left: 4px; padding: 3px 0 3px 14px; font-size: 13px; }
+.step summary { cursor: pointer; list-style: none; }
+.step summary .fn { font-family: var(--mono); }
+.step summary .gist { color: var(--ink-3); margin-left: 6px; }
+.step pre { font: 12px/1.5 var(--mono); white-space: pre-wrap; background: var(--sunken); border-radius: 6px; padding: 10px;
+  max-height: 280px; overflow: auto; margin: 6px 0 4px; }
+
+footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 13px; color: var(--ink-3); max-width: 720px; }
+footer p { margin: 0 0 6px; }
+@media (max-width: 640px) { .lede h1 { font-size: 22px; } .report { padding: 4px 16px 14px; } }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <h1>Patch<span>Wise</span></h1>
-    <p class="tag">Is this advisory really your problem, and what's the smallest upgrade that fixes it?</p>
-  </header>
+<div class="top"><div class="in">
+  <div class="brand">PatchWise <span>advisory triage for Python pins</span></div>
+  <div class="meta">Snapshot 2026-11-05 · 392 advisories · <a href="https://github.com/banerjeearun/patchwise" target="_blank" rel="noopener">source</a></div>
+</div></div>
 
-  <div class="grid">
-    <div class="card">
-      <h3>What it does</h3>
-      <p>Checks your pinned Python packages against every known advisory, finds the smallest upgrade
-        that clears them (on your release line when one exists), and explains what changes on the way, with sources.</p>
-    </div>
-    <div class="card">
-      <h3>Who it's for</h3>
-      <p>Developers and on-call engineers triaging a security alert who can't take a major upgrade
-        this sprint, like teams on Django 4.2 LTS.</p>
-    </div>
-    <div class="card">
-      <h3>How to use it</h3>
-      <ol>
-        <li>Paste exact pins (<code>django==4.2.10</code>) or a requirements.txt.</li>
-        <li>Optionally name an advisory (CVE / GHSA).</li>
-        <li>Wait 30–90 s while researchers work in parallel.</li>
-      </ol>
-    </div>
+<main>
+  <div class="lede">
+    <h1>Which advisories actually hit your pinned versions, and what's the smallest upgrade that clears them?</h1>
+    <p>Paste exact pins or a requirements.txt. Version math is done in code against OSV and PyPI.
+      Researchers then read each project's release notes to tell you what changes on the way, with sources.</p>
   </div>
 
-  <div class="ask">
-    <textarea id="q" placeholder="We use urllib3==1.26.17. Does CVE-2023-45803 mean we have to move to v2?"></textarea>
-    <div class="row">
-      <button class="primary" id="go">Check</button>
-      <button id="clear">New chat</button>
-      <span class="muted" id="status"></span>
+  <div class="composer">
+    <div class="tabs" role="tablist" aria-label="Examples">
+      <button class="tab" role="tab" aria-selected="true" data-ex="django">Django app</button>
+      <button class="tab" role="tab" aria-selected="false" data-ex="async">Async API</button>
+      <button class="tab" role="tab" aria-selected="false" data-ex="cve">One CVE</button>
+      <button class="tab" role="tab" aria-selected="false" data-ex="vague">Vague question</button>
+      <button class="tab" role="tab" aria-selected="false" data-ex="blank">Your own</button>
     </div>
-    <div class="row">
-      <span class="muted">Try:</span>
-      <button class="ex" data-q="We use urllib3==1.26.17. Does CVE-2023-45803 mean we have to move to v2?">One CVE, one pin</button>
-      <button class="ex" data-q="django==4.2.10&#10;pillow==10.0.0&#10;aiohttp==3.9.0&#10;requests==2.31.0">Django app requirements.txt</button>
-      <button class="ex" data-q="starlette==0.36.0&#10;aiohttp==3.10.2&#10;urllib3==2.2.1">Async API stack</button>
-      <button class="ex" data-q="Is my stack safe?">A vague question</button>
+    <div class="drop" id="drop">
+      <textarea id="q" spellcheck="false" aria-label="Pins, requirements.txt or a question"></textarea>
     </div>
-    <div class="chips" title="Covered packages">
-      <span class="muted">Covers:</span>
-      <span class="chip">django</span><span class="chip">urllib3</span><span class="chip">pillow</span>
-      <span class="chip">aiohttp</span><span class="chip">starlette</span><span class="chip">cryptography</span>
-      <span class="muted">· advisory snapshot 2026-11-05 (OSV, PyPI, project changelogs)</span>
+    <div class="bar">
+      <span class="hint">Drop a requirements.txt here, or <button class="linkish" id="pick">choose a file</button>. ⌘/Ctrl + Enter to run.</span>
+      <input type="file" id="file" accept=".txt,.in,text/plain" hidden>
+      <button class="btn" id="reset">Clear</button>
+      <button class="btn primary" id="go">Check pins</button>
     </div>
   </div>
+  <div class="covers">Covers <code>django</code> <code>urllib3</code> <code>pillow</code> <code>aiohttp</code> <code>starlette</code> <code>cryptography</code>. Anything else is listed as not checked.</div>
 
   <div class="thread" id="thread"></div>
 
   <footer>
-    Version facts are computed in code from OSV advisory ranges and PyPI releases, never guessed by the model.
-    PatchWise can't see your code, so it can't tell whether you use the vulnerable feature, and it checks direct pins only, not your full dependency tree.
+    <p>Who it's for: developers and on-call engineers triaging a security alert, especially on a release line they can't leave this sprint.</p>
+    <p>What it can't do: see your code (so whether you use the vulnerable feature), resolve your full dependency tree, or know about advisories published after the snapshot. "Not checked" never means safe.</p>
   </footer>
-</div>
+</main>
 
 <script>
 const $ = (id) => document.getElementById(id);
+const EXAMPLES = {
+  django: "# requirements.txt\ndjango==4.2.10\npillow==10.0.0\ncryptography==41.0.0\nrequests==2.31.0",
+  async: "# requirements.txt\nstarlette==0.36.0\naiohttp==3.10.2\nurllib3==2.2.1",
+  cve: "We use urllib3==1.26.17. Does CVE-2023-45803 mean we have to move to v2?",
+  vague: "Is my stack safe?",
+  blank: "",
+};
 let sessionId = null;
-const COLORS = { lead: "var(--lead)", writer: "var(--wri)" };
+let pending = "";  // text before a clarifying question, so the reply's verdicts include it
 
+// --- composer ---
+function pickExample(key) {
+  document.querySelectorAll(".tab").forEach(t => t.setAttribute("aria-selected", String(t.dataset.ex === key)));
+  $("q").value = EXAMPLES[key];
+  $("q").placeholder = key === "blank" ? "django==4.2.10\naiohttp==3.9.0\n\nor ask: does GHSA-... affect pillow==10.2.0?" : "";
+  $("q").focus();
+}
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => pickExample(t.dataset.ex));
+pickExample("django");
+
+const drop = $("drop");
+["dragenter", "dragover"].forEach(e => drop.addEventListener(e, ev => { ev.preventDefault(); drop.classList.add("over"); }));
+["dragleave", "drop"].forEach(e => drop.addEventListener(e, () => drop.classList.remove("over")));
+drop.addEventListener("drop", ev => { ev.preventDefault(); const f = ev.dataTransfer.files[0]; if (f) readFile(f); });
+$("pick").onclick = () => $("file").click();
+$("file").onchange = () => { if ($("file").files[0]) readFile($("file").files[0]); };
+function readFile(f) {
+  if (f.size > 200000) { alert("That file is larger than a requirements.txt should be."); return; }
+  f.text().then(t => { $("q").value = t; pickTabsOff(); $("q").focus(); });
+}
+function pickTabsOff() { document.querySelectorAll(".tab").forEach(t => t.setAttribute("aria-selected", String(t.dataset.ex === "blank"))); }
+$("q").addEventListener("input", pickTabsOff);
+$("q").addEventListener("keydown", e => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) run(); });
+$("go").onclick = run;
+$("reset").onclick = async () => {
+  if (sessionId) fetch("/clear?session_id=" + encodeURIComponent(sessionId), { method: "POST" });
+  sessionId = null; pending = ""; $("thread").innerHTML = ""; pickExample("blank");
+};
+
+// --- helpers ---
+const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 function md(text) {
-  const html = DOMPurify.sanitize(marked.parse(text));
-  const div = document.createElement("div");
-  div.innerHTML = html;
-  div.querySelectorAll("a").forEach(a => { a.target = "_blank"; a.rel = "noopener"; });
-  return div.innerHTML;
+  const box = el("div");
+  box.innerHTML = DOMPurify.sanitize(marked.parse(text));
+  box.querySelectorAll("a").forEach(a => { a.target = "_blank"; a.rel = "noopener"; a.title = a.href; });
+  return box.innerHTML;
 }
 
-function traceView(calls) {
-  const d = document.createElement("details");
-  d.className = "trace";
-  const agents = [...new Set(calls.map(c => c.agent))];
-  d.innerHTML = `<summary>Show work: ${calls.length} tool calls across ${agents.length} agents</summary>`;
-  for (const a of agents) {
-    const lane = document.createElement("div");
-    lane.className = "lane";
-    const color = COLORS[a] || "var(--res)";
-    lane.innerHTML = `<b><span class="dot" style="background:${color}"></span>${a}</b>`;
-    for (const c of calls.filter(c => c.agent === a)) {
-      const el = document.createElement("div");
-      el.className = "call";
-      const args = Object.entries(c.args || {}).map(([k, v]) => `${k}=${JSON.stringify(v)}`).join(", ");
-      const det = document.createElement("details");
-      const sum = document.createElement("summary");
-      sum.textContent = `${c.name}(${args.length > 110 ? args.slice(0, 110) + "…" : args})`;
-      const pre = document.createElement("pre");
-      pre.textContent = c.result ?? "";
-      det.append(sum, pre);
-      el.append(det);
-      lane.append(el);
-    }
-    d.append(lane);
+// --- verdict table (instant, from /triage) ---
+function stateOf(p) {
+  if (p.advisories_affecting_pin === 0) return ["s-ok", "No known advisories"];
+  if (p.full_fix_on_same_line) return ["s-mid", "Fix on your line"];
+  if (p.best_partial_on_line) return ["s-bad", "Partial fix on your line"];
+  return ["s-bad", "Needs a bigger jump"];
+}
+function verdictTable(t) {
+  const rows = [];
+  for (const p of t.checked_pins) {
+    const [cls, word] = stateOf(p);
+    const line = p.full_fix_on_same_line
+      ? `<span class="ver">${esc(p.full_fix_on_same_line)}</span><span class="sub">clears all</span>`
+      : p.best_partial_on_line
+        ? `<span class="ver">${esc(p.best_partial_on_line.version)}</span><span class="sub">clears ${p.best_partial_on_line.cleared} of ${p.advisories_affecting_pin}${p.best_partial_on_line.newly_introduced ? `, adds ${p.best_partial_on_line.newly_introduced} new` : ""}</span>`
+        : p.advisories_affecting_pin ? `<span class="sub">nothing on ${esc(p.line)}.x helps</span>` : `<span class="sub">—</span>`;
+    const full = p.advisories_affecting_pin === 0 ? `<span class="sub">stay on ${esc(p.pinned)}</span>`
+      : p.smallest_full_fix ? `<span class="ver">${esc(p.smallest_full_fix.version)}</span><span class="jump">${esc(p.smallest_full_fix.jump)}</span>`
+      : `<span class="sub">none in snapshot</span>`;
+    const asked = (p.asked_advisories || []).map(a => `<span class="sub">${esc(a.id)}: ${a.affected ? "affects this pin" : "does not affect this pin"}</span>`).join("");
+    const unfix = p.unfixable.length ? `<span class="sub">${p.unfixable.length} with no fix yet</span>` : "";
+    rows.push(`<tr><td class="pkg">${esc(p.package)}==${esc(p.pinned)}</td><td><span class="state ${cls}">${word}</span>${asked}</td>
+      <td class="num">${p.advisories_affecting_pin}${unfix}</td><td>${line}</td><td>${full}</td></tr>`);
   }
+  for (const u of t.unpinned_or_unknown) rows.push(`<tr><td class="pkg">${esc(u.package)}${esc(u.spec)}</td><td><span class="state s-none">Not checked</span></td><td colspan="3"><span class="sub">${esc(u.why)}</span></td></tr>`);
+  for (const n of t.not_covered) rows.push(`<tr><td class="pkg">${esc(n)}</td><td><span class="state s-none">Not checked</span></td><td colspan="3"><span class="sub">not in the PatchWise snapshot; not checked does not mean safe</span></td></tr>`);
+  if (!rows.length) return null;
+  const n = t.checked_pins.length;
+  const box = el("section", "verdicts");
+  box.innerHTML = `<header><p class="label">Verdicts</p><small>computed in code from OSV ranges and PyPI releases · ${n} pin${n === 1 ? "" : "s"} checked</small></header>
+    <div class="scroll"><table><thead><tr><th>Pin</th><th>Status</th><th>Advisories</th><th>Best on your line</th><th>Smallest full fix</th></tr></thead>
+    <tbody>${rows.join("")}</tbody></table></div>`;
+  return box;
+}
+
+// --- trace ---
+function gist(c) {
+  const r = c.result || "";
+  try {
+    const j = JSON.parse(r);
+    if (j.error) return "error: " + j.error;
+    if (c.name === "minimal_safe_version") return `${j.affecting_pinned?.length ?? "?"} advisories · line ${j.same_line?.version || j.same_line_best_partial?.version || "none"} · full ${j.overall?.version || "none"}`;
+    if (c.name === "advisories_for") return `${j.count} advisories`;
+    if (c.name === "is_affected") return j.affected ? "affected" : "not affected";
+    if (c.name === "fixes_by_branch") return Object.entries(j.lines || {}).slice(-3).map(([l, v]) => `${l}: ${v.earliest_fix || "none"}`).join(" · ");
+    if (j.passages) return `${j.passages.length} passages (${[...new Set(j.passages.map(p => p.version))].slice(0, 4).join(", ")})`;
+    if (j.at_fix_releases) return `fixed in ${(j.fix_versions || []).join(", ") || "?"} · ${j.naming_the_advisory.length + j.at_fix_releases.length} passages`;
+    if (j.checked_pins) return `${j.checked_pins.length} pins checked, ${j.not_covered.length + j.unpinned_or_unknown.length} not checked`;
+    if ("kept" in j) return `${j.kept} sources kept, ${j.dropped.length} removed`;
+  } catch (e) { /* not JSON, or truncated */ }
+  return r.split("\n")[0].slice(0, 90);
+}
+function trace(calls) {
+  const d = el("details", "work");
+  const agents = [...new Set(calls.map(c => c.agent))];
+  const researchers = agents.filter(a => a.startsWith("researcher:")).length;
+  d.innerHTML = `<summary>How this answer was made: ${calls.length} tool calls · lead${researchers ? ` → ${researchers} researcher${researchers > 1 ? "s" : ""} in parallel` : ""}${agents.includes("writer") ? " → writer" : ""}</summary>`;
+  const lanes = el("div", "lanes");
+  const role = { lead: "plans, clarifies, sends researchers", writer: "writes the answer; code checks every source" };
+  for (const a of agents) {
+    const lane = el("div", "lane", `<h4>${esc(a)}<small>${a.startsWith("researcher:") ? "one package, fresh context" : role[a] || ""}</small></h4>`);
+    for (const c of calls.filter(c => c.agent === a)) {
+      const step = el("details", "step");
+      const keyArgs = Object.entries(c.args || {}).filter(([k]) => k !== "task" && k !== "message").map(([k, v]) => `${k}=${v}`).join(", ");
+      step.innerHTML = `<summary><span class="fn">${esc(c.name)}</span><span class="gist">${esc(keyArgs.slice(0, 70))}${keyArgs.length > 70 ? "…" : ""} → ${esc(gist(c))}</span></summary>`;
+      const pre = el("pre"); pre.textContent = (c.args?.task ? "task: " + c.args.task + "\n\n" : "") + (c.result || "");
+      step.append(pre); lane.append(step);
+    }
+    lanes.append(lane);
+  }
+  d.append(lanes);
   return d;
 }
 
-function add(cls, content, isHtml) {
-  const el = document.createElement("div");
-  el.className = "msg " + cls;
-  if (isHtml) el.innerHTML = content; else el.textContent = content;
-  $("thread").append(el);
-  el.scrollIntoView({ behavior: "smooth", block: "start" });
-  return el;
-}
-
-async function send() {
+// --- run ---
+async function run() {
   const text = $("q").value.trim();
-  if (!text) return;
+  if (!text) { $("q").focus(); return; }
   $("go").disabled = true;
-  add("user", text);
-  $("q").value = "";
-  const wait = add("", `<div class="working"><div class="spin"></div><span>Lead is planning; researchers run in parallel… <span id="t">0</span>s</span></div>`, true);
+  const turn = el("article", "turn");
+  turn.append(el("div", "asked", esc(text)));
+  $("thread").prepend(turn);
+  turn.scrollIntoView({ behavior: "smooth", block: "start" });
+
+  const prog = el("div", "progress", `<span class="pulse"></span><span class="what">Reading your pins…</span><span class="t">0s</span>`);
+  turn.append(prog);
   const t0 = Date.now();
-  const timer = setInterval(() => { const t = $("t"); if (t) t.textContent = Math.round((Date.now() - t0) / 1000); }, 500);
+  const tick = setInterval(() => { prog.querySelector(".t").textContent = Math.round((Date.now() - t0) / 1000) + "s"; }, 500);
+
+  const chat = fetch("/chat", { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message: text, session_id: sessionId }) }).then(r => r.json());
+
   try {
-    const res = await fetch("/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: text, session_id: sessionId }),
-    });
-    const data = await res.json();
+    const t = await fetch("/triage", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: (pending ? pending + "\n" : "") + text }) }).then(r => r.json());
+    const table = verdictTable(t);
+    if (table) turn.insertBefore(table, prog);
+    const busy = t.checked_pins.filter(p => p.advisories_affecting_pin > 0).map(p => p.package);
+    prog.querySelector(".what").textContent = busy.length
+      ? `Researching ${busy.join(", ")} in parallel, reading release notes…`
+      : "Checking with the lead…";
+  } catch (e) { /* the verdict table is a bonus; /chat still answers */ }
+
+  try {
+    const data = await chat;
     sessionId = data.session_id;
     const clarify = data.tool_calls.length > 0 && !data.tool_calls.some(c => c.agent === "writer");
-    wait.className = "msg" + (clarify ? " clarify" : "");
-    wait.innerHTML = md(data.response);
-    if (data.tool_calls.length) wait.append(traceView(data.tool_calls));
-    $("status").textContent = clarify ? "PatchWise needs one more detail; reply below." : `Answered in ${Math.round((Date.now() - t0) / 1000)} s`;
+    if (clarify) {
+      pending = (pending ? pending + "\n" : "") + text;
+      const q = el("div", "question", `<p class="label">One question first</p>${md(data.response)}`);
+      turn.insertBefore(q, prog);
+      pickTabsOff(); $("q").value = ""; $("q").placeholder = "Your answer, e.g. django==4.2.10";
+    } else {
+      pending = "";
+      turn.insertBefore(el("section", "report", md(data.response)), prog);
+    }
+    if (data.tool_calls.length) turn.insertBefore(trace(data.tool_calls), prog);
   } catch (e) {
-    wait.textContent = "Request failed: " + e;
+    turn.insertBefore(el("p", "error", "The request failed: " + esc(e.message || e)), prog);
   } finally {
-    clearInterval(timer);
+    clearInterval(tick);
+    prog.remove();
     $("go").disabled = false;
     $("q").focus();
   }
 }
-
-$("go").onclick = send;
-$("q").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) send(); });
-document.querySelectorAll(".ex").forEach(b => b.onclick = () => { $("q").value = b.dataset.q; $("q").focus(); });
-$("clear").onclick = async () => {
-  if (sessionId) await fetch("/clear?session_id=" + encodeURIComponent(sessionId), { method: "POST" });
-  sessionId = null;
-  $("thread").innerHTML = "";
-  $("status").textContent = "";
-};
 </script>
 </body>
 </html>

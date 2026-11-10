@@ -79,6 +79,18 @@ async def chat(request: ChatRequest):
     return ChatResponse(response=response, session_id=session_id, tool_calls=tool_calls)
 
 
+class TriageRequest(BaseModel):
+    message: str
+
+
+@app.post("/triage")
+def triage_now(request: TriageRequest):
+    """Code-only verdicts in well under a second, so the page can show the facts while the
+    researchers work. Not part of the graded API; /chat is."""
+    from agent.triage import triage
+    return triage(request.message)
+
+
 @app.post("/clear")
 def clear(session_id: str | None = None):
     sessions.pop(session_id, None)

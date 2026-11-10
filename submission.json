@@ -1,5 +1,5 @@
 {
-    "deploy_url": "TBD-after-cloud-run-deploy",
+    "deploy_url": "https://patchwise-git-177209096392.europe-west1.run.app",
     "authors": ["ab6130"],
     "path": "research"
 }
