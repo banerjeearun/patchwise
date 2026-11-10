@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PatchWise</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
+<style>
+:root {
+  --bg: #f6f7f4; --panel: #ffffff; --ink: #1b1f1d; --muted: #5d6762; --line: #dfe3df;
+  --accent: #1f7a55; --accent-ink: #ffffff; --warn: #b4531a; --code: #eef1ee;
+  --lead: #1f7a55; --res: #2c5f9e; --wri: #7a4fa0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121514; --panel: #1a1f1d; --ink: #e7ece9; --muted: #9aa6a0; --line: #2b3330;
+    --accent: #43b884; --accent-ink: #0d1a14; --warn: #e48a52; --code: #232a27;
+    --lead: #43b884; --res: #6fa2e3; --wri: #b892dc;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink);
+  font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+.wrap { max-width: 920px; margin: 0 auto; padding: 28px 16px 64px; }
+header h1 { margin: 0; font-size: 30px; letter-spacing: -0.02em; }
+header h1 span { color: var(--accent); }
+.tag { margin: 6px 0 0; font-size: 18px; color: var(--muted); }
+.grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 22px 0; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+.card h3 { margin: 0 0 6px; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.card p, .card ol { margin: 0; }
+.card ol { padding-left: 18px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.chip { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--code);
+  padding: 2px 8px; border-radius: 99px; }
+.ask { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+textarea { width: 100%; min-height: 120px; resize: vertical; border: 1px solid var(--line);
+  border-radius: 8px; padding: 10px 12px; background: var(--bg); color: var(--ink);
+  font: 14px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
+button { border: 1px solid var(--line); background: var(--panel); color: var(--ink);
+  border-radius: 8px; padding: 7px 12px; font: inherit; cursor: pointer; }
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+button:disabled { opacity: .55; cursor: wait; }
+.ex { font-size: 13px; }
+.muted { color: var(--muted); font-size: 13px; }
+.thread { margin-top: 22px; display: flex; flex-direction: column; gap: 14px; }
+.msg { border-radius: 12px; padding: 14px 16px; border: 1px solid var(--line); background: var(--panel); overflow-wrap: anywhere; }
+.msg.user { background: var(--code); white-space: pre-wrap; font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.msg.clarify { border-left: 4px solid var(--warn); }
+.msg h3 { margin: 18px 0 6px; font-size: 17px; }
+.msg a { color: var(--accent); }
+.msg code { background: var(--code); padding: 1px 5px; border-radius: 4px; font-size: 13px; }
+.msg ul { padding-left: 20px; }
+details.trace { margin-top: 12px; border-top: 1px dashed var(--line); padding-top: 10px; }
+details.trace summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+.lane { margin: 10px 0 0; }
+.lane b { font: 600 12px ui-monospace, Menlo, monospace; }
+.call { margin: 4px 0 0 12px; font: 12px/1.45 ui-monospace, Menlo, monospace; }
+.call details summary { cursor: pointer; }
+.call pre { white-space: pre-wrap; max-height: 260px; overflow: auto; background: var(--code);
+  padding: 8px; border-radius: 6px; margin: 4px 0 0; }
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+.working { display: flex; gap: 10px; align-items: center; }
+.spin { width: 16px; height: 16px; border: 2px solid var(--line); border-top-color: var(--accent);
+  border-radius: 50%; animation: s 0.9s linear infinite; }
+@keyframes s { to { transform: rotate(360deg); } }
+footer { margin-top: 36px; color: var(--muted); font-size: 12px; }
+@media (max-width: 720px) { .grid { grid-template-columns: 1fr; } header h1 { font-size: 25px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Patch<span>Wise</span></h1>
+    <p class="tag">Is this advisory really your problem, and what's the smallest upgrade that fixes it?</p>
+  </header>
+
+  <div class="grid">
+    <div class="card">
+      <h3>What it does</h3>
+      <p>Checks your pinned Python packages against every known advisory, finds the smallest upgrade
+        that clears them (on your release line when one exists), and explains what changes on the way, with sources.</p>
+    </div>
+    <div class="card">
+      <h3>Who it's for</h3>
+      <p>Developers and on-call engineers triaging a security alert who can't take a major upgrade
+        this sprint, like teams on Django 4.2 LTS.</p>
+    </div>
+    <div class="card">
+      <h3>How to use it</h3>
+      <ol>
+        <li>Paste exact pins (<code>django==4.2.10</code>) or a requirements.txt.</li>
+        <li>Optionally name an advisory (CVE / GHSA).</li>
+        <li>Wait 30–90 s while researchers work in parallel.</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="ask">
+    <textarea id="q" placeholder="We use urllib3==1.26.17. Does CVE-2023-45803 mean we have to move to v2?"></textarea>
+    <div class="row">
+      <button class="primary" id="go">Check</button>
+      <button id="clear">New chat</button>
+      <span class="muted" id="status"></span>
+    </div>
+    <div class="row">
+      <span class="muted">Try:</span>
+      <button class="ex" data-q="We use urllib3==1.26.17. Does CVE-2023-45803 mean we have to move to v2?">One CVE, one pin</button>
+      <button class="ex" data-q="django==4.2.10&#10;pillow==10.0.0&#10;aiohttp==3.9.0&#10;requests==2.31.0">Django app requirements.txt</button>
+      <button class="ex" data-q="starlette==0.36.0&#10;aiohttp==3.10.2&#10;urllib3==2.2.1">Async API stack</button>
+      <button class="ex" data-q="Is my stack safe?">A vague question</button>
+    </div>
+    <div class="chips" title="Covered packages">
+      <span class="muted">Covers:</span>
+      <span class="chip">django</span><span class="chip">urllib3</span><span class="chip">pillow</span>
+      <span class="chip">aiohttp</span><span class="chip">starlette</span><span class="chip">cryptography</span>
+      <span class="muted">· advisory snapshot 2026-11-05 (OSV, PyPI, project changelogs)</span>
+    </div>
+  </div>
+
+  <div class="thread" id="thread"></div>
+
+  <footer>
+    Version facts are computed in code from OSV advisory ranges and PyPI releases, never guessed by the model.
+    PatchWise can't see your code, so it can't tell whether you use the vulnerable feature, and it checks direct pins only, not your full dependency tree.
+  </footer>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let sessionId = null;
+const COLORS = { lead: "var(--lead)", writer: "var(--wri)" };
+
+function md(text) {
+  const html = DOMPurify.sanitize(marked.parse(text));
+  const div = document.createElement("div");
+  div.innerHTML = html;
+  div.querySelectorAll("a").forEach(a => { a.target = "_blank"; a.rel = "noopener"; });
+  return div.innerHTML;
+}
+
+function traceView(calls) {
+  const d = document.createElement("details");
+  d.className = "trace";
+  const agents = [...new Set(calls.map(c => c.agent))];
+  d.innerHTML = `<summary>Show work: ${calls.length} tool calls across ${agents.length} agents</summary>`;
+  for (const a of agents) {
+    const lane = document.createElement("div");
+    lane.className = "lane";
+    const color = COLORS[a] || "var(--res)";
+    lane.innerHTML = `<b><span class="dot" style="background:${color}"></span>${a}</b>`;
+    for (const c of calls.filter(c => c.agent === a)) {
+      const el = document.createElement("div");
+      el.className = "call";
+      const args = Object.entries(c.args || {}).map(([k, v]) => `${k}=${JSON.stringify(v)}`).join(", ");
+      const det = document.createElement("details");
+      const sum = document.createElement("summary");
+      sum.textContent = `${c.name}(${args.length > 110 ? args.slice(0, 110) + "…" : args})`;
+      const pre = document.createElement("pre");
+      pre.textContent = c.result ?? "";
+      det.append(sum, pre);
+      el.append(det);
+      lane.append(el);
+    }
+    d.append(lane);
+  }
+  return d;
+}
+
+function add(cls, content, isHtml) {
+  const el = document.createElement("div");
+  el.className = "msg " + cls;
+  if (isHtml) el.innerHTML = content; else el.textContent = content;
+  $("thread").append(el);
+  el.scrollIntoView({ behavior: "smooth", block: "start" });
+  return el;
+}
+
+async function send() {
+  const text = $("q").value.trim();
+  if (!text) return;
+  $("go").disabled = true;
+  add("user", text);
+  $("q").value = "";
+  const wait = add("", `<div class="working"><div class="spin"></div><span>Lead is planning; researchers run in parallel… <span id="t">0</span>s</span></div>`, true);
+  const t0 = Date.now();
+  const timer = setInterval(() => { const t = $("t"); if (t) t.textContent = Math.round((Date.now() - t0) / 1000); }, 500);
+  try {
+    const res = await fetch("/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: text, session_id: sessionId }),
+    });
+    const data = await res.json();
+    sessionId = data.session_id;
+    const clarify = data.tool_calls.length > 0 && !data.tool_calls.some(c => c.agent === "writer");
+    wait.className = "msg" + (clarify ? " clarify" : "");
+    wait.innerHTML = md(data.response);
+    if (data.tool_calls.length) wait.append(traceView(data.tool_calls));
+    $("status").textContent = clarify ? "PatchWise needs one more detail; reply below." : `Answered in ${Math.round((Date.now() - t0) / 1000)} s`;
+  } catch (e) {
+    wait.textContent = "Request failed: " + e;
+  } finally {
+    clearInterval(timer);
+    $("go").disabled = false;
+    $("q").focus();
+  }
+}
+
+$("go").onclick = send;
+$("q").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) send(); });
+document.querySelectorAll(".ex").forEach(b => b.onclick = () => { $("q").value = b.dataset.q; $("q").focus(); });
+$("clear").onclick = async () => {
+  if (sessionId) await fetch("/clear?session_id=" + encodeURIComponent(sessionId), { method: "POST" });
+  sessionId = null;
+  $("thread").innerHTML = "";
+  $("status").textContent = "";
+};
+</script>
+</body>
+</html>
