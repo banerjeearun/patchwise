@@ -94,6 +94,22 @@ The trace shows each step as `error`, `fallback_research`, `fallback_lead` or `f
 Researchers also have a tool budget of 10 calls enforced in code, and they start 1.5 s apart, to
 reduce bursts.
 
+**The gap loop in a real run** (2026-11-11, `starlette==0.36.0 / aiohttp==3.10.2 / urllib3==2.2.1`):
+the Lead first sent 3 researchers in parallel. The starlette researcher covered the 7 advisories but
+not what breaks on the major jump to 1.3.1, so the Lead sent a 4th `research` call for starlette with
+the task *"Identify the breaking changes or deprecations between starlette 0.36.0 and 1.3.1"*. That
+follow-up found that 0.50.0 requires Python ≥ 3.10 and 0.45.0 removed WebSocket constants, each cited.
+On other runs the first round had no gaps and the Lead finished without a follow-up, which is also
+correct.
+
+**Time guards:** a follow-up runs after the first round, so it adds time. To stay inside the grader's
+5-minute window (`REQUEST_TIMEOUT_S=270`):
+- each researcher has a 110 s cap, and never runs into the 60 s kept for the Lead's last turn and the
+  Writer;
+- the Lead may go back for gaps only while at least 150 s remain.
+
+If a researcher hits its cap, the code fallback supplies its cited release notes instead.
+
 **Why the version logic is code, not the model:** whether `4.2.10` falls inside an OSV range
 (`introduced` / `fixed` / `last_affected`) is a comparison done with `packaging.version`. The
 model decides what to look up and explains the result, but it never computes a verdict.

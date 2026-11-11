@@ -260,7 +260,11 @@ async def research(ctx: RunContextWrapper[Run], package: str, pinned_version: st
         pinned_version: The user's exact pinned version.
         task: What to find out, specific to this package (mention any advisory ID the user asked about).
     """
-    return await run_researcher(ctx.context, package, pinned_version, task)
+    run = ctx.context
+    if run.findings and run.left() < config.FOLLOWUP_MIN_LEFT_S:
+        # A follow-up runs after the first round; with too little time left it would time out the whole request.
+        return "Not enough time left for follow-up research. Reply DONE now."
+    return await run_researcher(run, package, pinned_version, task)
 
 
 async def run_researcher(run: Run, package: str, pinned_version: str, task: str) -> str:
@@ -279,11 +283,22 @@ async def run_researcher(run: Run, package: str, pinned_version: str, task: str)
     out = None
     for attempt, wait in enumerate((8, 20, None)):  # backoff for transient errors (Vertex 429s, timeouts)
         rctx.tool_calls = 0
+        # Deadline: never eat into the time the Lead's last turn and the Writer need.
+        budget = min(config.RESEARCHER_TIMEOUT_S, run.left() - config.WRITER_RESERVE_S)
+        if budget < 20:
+            run.calls.append({"agent": f"researcher:{package}", "name": "error", "args": {"attempt": attempt + 1},
+                              "result": "skipped: not enough time left in the request"})
+            break
         try:
-            result = await Runner.run(agent, prompt, context=rctx, hooks=Trace(), max_turns=config.RESEARCHER_MAX_TURNS)
+            result = await asyncio.wait_for(
+                Runner.run(agent, prompt, context=rctx, hooks=Trace(), max_turns=config.RESEARCHER_MAX_TURNS), budget)
             out = str(result.final_output)
             break
         except MaxTurnsExceeded:
+            break
+        except asyncio.TimeoutError:
+            run.calls.append({"agent": f"researcher:{package}", "name": "error", "args": {"attempt": attempt + 1},
+                              "result": f"timed out after {round(budget)} s"})
             break
         except Exception as e:  # one failed researcher must not sink the whole request
             run.calls.append({"agent": f"researcher:{package}", "name": "error", "args": {"attempt": attempt + 1},
