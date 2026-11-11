@@ -35,6 +35,7 @@ class Run:
     passages: dict[str, dict] = field(default_factory=dict)  # chunk_id -> passage, for citations
     researchers: int = 0
     findings: list[dict] = field(default_factory=list)
+    tool_calls: int = 0  # per researcher: each researcher gets its own Run sharing calls/passages
 
 
 def agent_label(agent: Agent) -> str:
@@ -50,6 +51,7 @@ class Trace(RunHooks):
             args = json.loads(args) if isinstance(args, str) else (args or {})
         except json.JSONDecodeError:
             args = {"raw": args}
+        ctx.context.tool_calls += 1
         ctx.context.calls.append({"agent": agent_label(agent), "name": tool.name, "args": args,
                                   "result": None, "_id": getattr(ctx, "tool_call_id", None)})
 
@@ -88,9 +90,17 @@ def _keep_passages(ctx: RunContextWrapper[Run], result: dict) -> dict:
 
 # --- Researcher tools (all deterministic; thin wrappers over tools/) ---
 
+BUDGET_MSG = ("Tool budget used up. Do not call any more tools: write your answer now, in the "
+              "required shape, from what you already have.")
+
+
+def _over(ctx: RunContextWrapper[Run]) -> bool:
+    """Every extra researcher turn is another Vertex request; the prompt's budget isn't enough."""
+    return ctx.context.tool_calls > config.RESEARCHER_TOOL_BUDGET
+
 
 @function_tool
-def minimal_safe_version(package: str, pinned_version: str) -> str:
+def minimal_safe_version(ctx: RunContextWrapper[Run], package: str, pinned_version: str) -> str:
     """Smallest upgrade that clears every known advisory against a pinned version: on the same
     release line (if any), the best partial fix on the line, and the smallest full fix overall.
 
@@ -98,22 +108,26 @@ def minimal_safe_version(package: str, pinned_version: str) -> str:
         package: Package name, e.g. 'django'.
         pinned_version: The exact pinned version, e.g. '4.2.10'.
     """
+    if _over(ctx):
+        return BUDGET_MSG
     return _dump(versions.minimal_safe_version(package, pinned_version))
 
 
 @function_tool
-def advisories_for(package: str, version: str) -> str:
+def advisories_for(ctx: RunContextWrapper[Run], package: str, version: str) -> str:
     """Every advisory in the snapshot that affects package==version, with summaries.
 
     Args:
         package: Package name.
         version: Exact version.
     """
+    if _over(ctx):
+        return BUDGET_MSG
     return _dump(versions.advisories_for(package, version))
 
 
 @function_tool
-def is_affected(package: str, version: str, advisory_id: str) -> str:
+def is_affected(ctx: RunContextWrapper[Run], package: str, version: str, advisory_id: str) -> str:
     """Whether package==version falls inside one advisory's affected ranges (any ID or alias).
 
     Args:
@@ -121,17 +135,21 @@ def is_affected(package: str, version: str, advisory_id: str) -> str:
         version: Exact version.
         advisory_id: GHSA, PYSEC or CVE ID.
     """
+    if _over(ctx):
+        return BUDGET_MSG
     return _dump(versions.is_affected(package, version, advisory_id))
 
 
 @function_tool
-def fixes_by_branch(package: str, advisory_id: str) -> str:
+def fixes_by_branch(ctx: RunContextWrapper[Run], package: str, advisory_id: str) -> str:
     """For one advisory: the earliest fix on each release line, or null if that line was never fixed.
 
     Args:
         package: Package name.
         advisory_id: GHSA, PYSEC or CVE ID.
     """
+    if _over(ctx):
+        return BUDGET_MSG
     return _dump(versions.fixes_by_branch(package, advisory_id))
 
 
@@ -144,6 +162,8 @@ def notes_for_advisory(ctx: RunContextWrapper[Run], package: str, advisory_id: s
         package: Package name.
         advisory_id: GHSA, PYSEC or CVE ID.
     """
+    if _over(ctx):
+        return BUDGET_MSG
     return _dump(_keep_passages(ctx, search.notes_for_advisory(package, advisory_id)))
 
 
@@ -160,6 +180,8 @@ def search_docs(ctx: RunContextWrapper[Run], query: str, package: str, after_ver
         after_version: Exclusive lower bound, usually the user's pin.
         up_to_version: Inclusive upper bound, usually the target version.
     """
+    if _over(ctx):
+        return BUDGET_MSG
     return _dump(_keep_passages(ctx, search.search_docs(query, package, after_version, up_to_version, k=6)))
 
 
@@ -171,6 +193,8 @@ def release_notes(ctx: RunContextWrapper[Run], package: str, version: str) -> st
         package: Package name.
         version: Exact version, e.g. '1.26.18'.
     """
+    if _over(ctx):
+        return BUDGET_MSG
     return _dump(_keep_passages(ctx, search.release_notes(package, version, limit=8)))
 
 
@@ -182,7 +206,7 @@ You research ONE Python package for an engineer triaging security advisories. Yo
 the pinned version, and a task. Use only facts from your tools; never from memory.
 
 Work fast: call independent tools IN THE SAME TURN (e.g. steps 1 and 2 together, then all doc
-lookups together). Use at most 8 tool calls in total, then answer.
+lookups together). Use at most 8 tool calls in total, then answer (code stops tools after 10).
 
 Steps:
 1. minimal_safe_version(package, pinned) for the targets. If the task names an advisory, also
@@ -233,24 +257,56 @@ async def research(ctx: RunContextWrapper[Run], package: str, pinned_version: st
     run = ctx.context
     if run.researchers >= config.MAX_RESEARCHERS:
         return "No researchers left for this request. Reply DONE."
+    slot = run.researchers
     run.researchers += 1
     agent = make_researcher(package.strip().lower())
     prompt = f"Package: {package}\nPinned version: {pinned_version}\nTask: {task}"
+    # Own tool-call counter, shared trace and passages.
+    rctx = Run(calls=run.calls, passages=run.passages)
+    # Still parallel, but don't hit Vertex with every researcher's first request in the same instant.
+    await asyncio.sleep(min(slot, 4) * config.RESEARCHER_STAGGER_S)
     out = None
-    for attempt in range(2):  # one retry for transient errors (429s, timeouts)
+    for attempt, wait in enumerate((8, 20, None)):  # backoff for transient errors (Vertex 429s, timeouts)
+        rctx.tool_calls = 0
         try:
-            result = await Runner.run(agent, prompt, context=run, hooks=Trace(), max_turns=config.RESEARCHER_MAX_TURNS)
+            result = await Runner.run(agent, prompt, context=rctx, hooks=Trace(), max_turns=config.RESEARCHER_MAX_TURNS)
             out = str(result.final_output)
             break
         except MaxTurnsExceeded:
-            out = (f"Researcher ran out of turns. GAPS: release-note explanations for {package}. "
-                   "Do not send another researcher for this package; the writer will use the triage table.")
             break
         except Exception as e:  # one failed researcher must not sink the whole request
-            out = f"Researcher failed: {type(e).__name__}: {str(e)[:200]}. GAPS: everything for {package}."
-            await asyncio.sleep(2)
+            run.calls.append({"agent": f"researcher:{package}", "name": "error", "args": {"attempt": attempt + 1},
+                              "result": f"{type(e).__name__}: {str(e)[:200]}"})
+            if wait:
+                await asyncio.sleep(wait)
+    if out is None:
+        out = fallback_findings(run, package.strip().lower(), pinned_version)
     run.findings.append({"package": package, "pinned": pinned_version, "task": task, "findings": out})
     return out
+
+
+def fallback_findings(run: Run, package: str, pinned: str) -> str:
+    """The researcher failed: gather release-note passages between the pin and the target in code,
+    so the writer still has cited material. No model call."""
+    try:
+        target = (versions.minimal_safe_version(package, pinned).get("overall") or {}).get("version")
+        res = search.search_docs("breaking change removed deprecated behavior change", package,
+                                 pinned, target, k=8) if target else {"passages": []}
+    except Exception as e:
+        run.calls.append({"agent": "code", "name": "fallback_research", "args": {"package": package},
+                          "result": f"{type(e).__name__}: {e}"[:300]})
+        return (f"{package}=={pinned}: release notes were not analyzed in this run. "
+                "Do not send another researcher for this package; the writer will use the triage table.")
+    lines = [f"{package}=={pinned}: automatic summary (code). Target from triage: {target} [V:{package}=={target}]. "
+             "Release-note passages between the pin and the target, most relevant first:"]
+    for p in res.get("passages", []):
+        run.passages[p["chunk_id"]] = p
+        lines.append(f"- {p['version']} {p.get('section') or ''}: {p['text'][:500]} [S:{p['chunk_id']}]")
+    run.calls.append({"agent": "code", "name": "fallback_research",
+                      "args": {"package": package, "after": pinned, "up_to": target},
+                      "result": f"{len(res.get('passages', []))} passages"})
+    lines.append("Do not send another researcher for this package.")
+    return "\n".join(lines)
 
 
 LEAD_INSTRUCTIONS = f"""\
@@ -298,6 +354,10 @@ researcher findings you're given.
   fact they support. Never write a URL. Never add facts that aren't in the findings or table.
 - Don't say a release line is end-of-life unless the findings cite a source for it; say "no fix on
   that line in the snapshot".
+- Never mention researchers, failures, errors, tools or the pipeline. If the findings for a
+  package say release notes were not analyzed, write "Release notes weren't analyzed for this
+  package in this run; try again for details" under What changes, and still give everything
+  the triage table says.
 - Plain, specific sentences. No filler.
 """
 

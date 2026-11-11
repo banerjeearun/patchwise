@@ -18,7 +18,7 @@ def model(name: str) -> LitellmModel:
 def settings(parallel: bool = False) -> ModelSettings:
     return ModelSettings(
         parallel_tool_calls=parallel or None,
-        extra_args={"vertex_location": "global", "timeout": 90, "num_retries": 2},
+        extra_args={"vertex_location": "global", "timeout": 90, "num_retries": 3},
     )
 
 
@@ -26,5 +26,7 @@ MAX_RESEARCHERS = 8         # researcher runs per request, across all rounds (co
 MAX_FOLLOWUP_ROUNDS = 2     # Lead may go back for gaps at most this many times
 LEAD_MAX_TURNS = 6          # fan-out + 2 follow-ups + final answer, with slack
 RESEARCHER_MAX_TURNS = 12
+RESEARCHER_TOOL_BUDGET = 10  # code-enforced; tools return 'budget used up' after this
+RESEARCHER_STAGGER_S = 1.5   # delay between researcher starts, to avoid a burst of requests
 REQUEST_TIMEOUT_S = 270     # graders wait up to 300 s
 TOOL_RESULT_CHARS = 6000    # tool output kept in the /chat trace, per call

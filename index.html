@@ -291,7 +291,7 @@ function trace(calls) {
   const researchers = agents.filter(a => a.startsWith("researcher:")).length;
   d.innerHTML = `<summary>How this answer was made: ${calls.length} tool calls · lead${researchers ? ` → ${researchers} researcher${researchers > 1 ? "s" : ""} in parallel` : ""}${agents.includes("writer") ? " → writer" : ""}</summary>`;
   const lanes = el("div", "lanes");
-  const role = { lead: "plans, clarifies, sends researchers", writer: "writes the answer; code checks every source" };
+  const role = { lead: "plans, clarifies, sends researchers", writer: "writes the answer; code checks every source", code: "backup: pulls release notes if a researcher fails" };
   for (const a of agents) {
     const lane = el("div", "lane", `<h4>${esc(a)}<small>${a.startsWith("researcher:") ? "one package, fresh context" : role[a] || ""}</small></h4>`);
     for (const c of calls.filter(c => c.agent === a)) {
