@@ -118,6 +118,10 @@ td.num { font-variant-numeric: tabular-nums; }
   text-underline-offset: 2px; }
 .report ol { font-size: 13px; color: var(--ink-2); padding-left: 22px; }
 .report code { background: var(--sunken); padding: 1px 5px; border-radius: 4px; }
+.report ol em { display: block; font-style: normal; color: var(--ink-3); border-left: 2px solid var(--line);
+  padding-left: 8px; margin: 3px 0 8px; }
+.report .changes { margin: 12px 0 4px; font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-2); }
+.report .changes + ul { border-left: 3px solid var(--focus); padding-left: 24px; margin-left: 0; }
 .question { border-left: 3px solid var(--mid); background: var(--surface); border-radius: 0 10px 10px 0; padding: 12px 16px;
   border-top: 1px solid var(--line); border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .question .label { color: var(--mid); }
@@ -230,6 +234,13 @@ function md(text) {
   const box = el("div");
   box.innerHTML = DOMPurify.sanitize(marked.parse(text));
   box.querySelectorAll("a").forEach(a => { a.target = "_blank"; a.rel = "noopener"; a.title = a.href; });
+  // Hovering a superscript shows the quoted release-note line from the Sources list.
+  const quotes = {};
+  box.querySelectorAll("ol li").forEach(li => { const a = li.querySelector("a"), q = li.querySelector("em");
+    if (a && q) quotes[a.getAttribute("href")] = q.textContent; });
+  box.querySelectorAll("a").forEach(a => { if (!a.closest("ol") && quotes[a.getAttribute("href")]) a.title = quotes[a.getAttribute("href")]; });
+  // The part only research can add gets a visible heading.
+  box.querySelectorAll("p").forEach(p => { if (/^What changes on the way:?$/i.test(p.textContent.trim())) p.className = "changes"; });
   return box.innerHTML;
 }
 

@@ -342,9 +342,14 @@ You write PatchWise's answer for an engineer, in markdown, using ONLY the triage
 researcher findings you're given.
 
 - Start with a 1-3 sentence bottom line.
-- Then one section per package: "### <package>==<pinned>", then bullets: **Affected**,
-  **Smallest safe upgrade** (say the jump size; if there's a same-line partial fix, give it and
-  what remains), **What changes**, **Check before upgrading**, **Can't tell from the data**.
+- Then one section per package: "### <package>==<pinned>", then exactly this layout:
+  **Verdict:** ONE line: affected by N advisories · upgrade to X (jump size) · if there's a
+  same-line partial fix: "on your line: Y clears A, leaves B". Cite it.
+  **What changes on the way** (the most important part; the reader already saw the verdict in a
+  table): 2-5 bullets of concrete behavior changes, removals, deprecations and security fixes
+  from the release notes, each naming the API or setting and the version it changed in, cited.
+  **Check before upgrading:** 1-3 bullets, each a concrete thing to grep for or test, cited.
+  **Can't tell from the data:** one line.
 - Pins with 0 advisories: one line saying no advisories in the snapshot affect them.
 - Unusable input (ranges, unknown versions, uncovered packages): a short "Not checked" list with why.
   Then say plainly that "not checked" does NOT mean safe, name the covered packages (django,
@@ -371,12 +376,19 @@ BRACKET = re.compile(r"\[([^\[\]]+)\](?!\()")
 KEY = re.compile(r"^\s*(S|A|V):\s*(.+?)\s*$")
 
 
-def resolve(key: str, value: str, run: Run) -> tuple[str, str] | None:
-    """(label, url) if the key points at something real in this run / the snapshot, else None."""
+def quote(text: str, limit: int = 180) -> str:
+    """A verbatim excerpt of a release-note passage, minus the contextual header line we added."""
+    body = text.split("\n", 1)[1] if "\n" in text else text
+    body = re.sub(r"\s+", " ", re.sub(r"[*`\[\]_]", "", body)).strip()
+    return body if len(body) <= limit else body[:limit].rsplit(" ", 1)[0] + " …"
+
+
+def resolve(key: str, value: str, run: Run) -> tuple | None:
+    """(label, url[, quote]) if the key points at something real in this run / the snapshot, else None."""
     if key == "S" and value in run.passages:
         p = run.passages[value]
         label = f"{p['package']} {p['version']} release notes" + (f": {p['section']}" if p["section"] else "")
-        return label, p["source_url"]
+        return label, p["source_url"], quote(p["text"])
     if key == "A":
         found = versions.store().find_advisory(value)
         if found:
@@ -391,8 +403,7 @@ def resolve(key: str, value: str, run: Run) -> tuple[str, str] | None:
 
 
 def apply_citations(text: str, run: Run) -> tuple[str, dict]:
-    numbers: dict[tuple[str, str], int] = {}
-    refs: list[tuple[int, str, str]] = []
+    refs: list[tuple[int, str, str, str]] = []  # (number, label, url, quote)
     dropped: list[str] = []
 
     def sub(m: re.Match) -> str:
@@ -406,16 +417,16 @@ def apply_citations(text: str, run: Run) -> tuple[str, dict]:
             if hit is None:
                 dropped.append(f"{k.group(1)}:{k.group(2)}")
                 continue
-            if hit[1] not in {u for _, _, u in refs}:
-                numbers[hit] = len(refs) + 1
-                refs.append((numbers[hit], hit[0], hit[1]))
-            n = next(n for n, _, u in refs if u == hit[1])
+            if hit[1] not in {r[2] for r in refs}:
+                refs.append((len(refs) + 1, hit[0], hit[1], hit[2] if len(hit) > 2 else ""))
+            n = next(r[0] for r in refs if r[2] == hit[1])
             out.append(f"[{n}]({hit[1]})")
         return "".join(out)
 
     body = BRACKET.sub(sub, text)
     if refs:
-        body += "\n\n**Sources**\n" + "\n".join(f"{n}. [{label}]({url})" for n, label, url in refs)
+        body += "\n\n**Sources**\n" + "\n".join(
+            f"{n}. [{label}]({url})" + (f" — *“{q}”*" if q else "") for n, label, url, q in refs)
     return body, {"kept": len(refs), "dropped": dropped}
 
 

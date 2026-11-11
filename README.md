@@ -31,7 +31,8 @@ release notes for what changes, and says plainly what it couldn't check.
    and one CVE. The tabs above the box hold ready-made examples.
 2. A **verdict table** appears within about a second. It's computed in code: affected or not,
    any fix on your line, and the smallest full fix.
-3. The **cited report** follows in roughly 40–90 seconds. Superscript numbers link to the exact
+3. The **cited report** follows, usually in 40–90 seconds. It can take up to about 2.5 minutes
+   when Vertex AI is rate-limiting. Superscript numbers link to the exact
    lines of the changelog, the OSV advisory, or the PyPI release.
 4. If the question is vague ("is my stack safe?", or no versions given), PatchWise asks for your
    pins first. Reply in the same box and it combines your answer with what you said before.
@@ -168,6 +169,10 @@ Vertex AI), given the same message with **no tools and no system prompt**.
 The full, unedited text of both answers for every query is in
 [`samples/outputs.md`](samples/outputs.md). It was generated on 2026-11-11.
 
+The times below were measured with no throttling. When Vertex AI rate-limits the project,
+retries and backoff can make a report take up to about **2.5 minutes**. The instant verdict
+table is not affected.
+
 ### 1. One CVE, one pin
 
 > We use urllib3==1.26.17. Does CVE-2023-45803 mean we have to move to v2?
@@ -249,6 +254,27 @@ right. It fails wherever the answer depends on **recent** advisories, **counting
 advisories, or **which release lines got backports**, and it makes up confident specifics such
 as non-existent CVE IDs and "zero breaking changes". PatchWise takes 3–7 times longer but gets
 every expected value above, and every claim links to a record you can check.
+
+### Does retrieval matter? Ablation run
+
+The verdict facts (affected or not, counts, target versions) come from structured data checked
+in code. So what do retrieval and the researchers add? To find out, we reran the same 3 queries
+with the researchers limited to the 4 version tools: no changelog search, no release-note
+lookups, and no code fallback. The full text is in
+[`samples/no_retrieval.md`](samples/no_retrieval.md).
+
+| | Full PatchWise | Without retrieval |
+|---|---|---|
+| Release-note citations (Q1 / Q2 / Q3) | **2 / 4 / 18** | **0 / 0 / 0** |
+| Verdicts and target versions | correct | still correct (they come from code) |
+| "What changes" contents | Concrete behavior changes from the release notes: 1.26.19 strips `Proxy-Authorization`; Django's `URLField.to_python()` normalization and the 500-character language-code limit; Starlette removed `TestClient(app=…)` and `allow_redirects` and changed the type of `methods` | Only restates the **advisory summaries** ("resolves request smuggling", "fixes 37 advisories"). No API or behavior changes, and twice says the release notes weren't analyzed. |
+| "Check before upgrading" | Specific things to grep for or test (`TestClient` calls, custom URL validators) | Generic, or based only on advisory text |
+
+So the version data answers *whether* and *to what*. Retrieval answers **what will break when
+you do it**, which is the question `pip-audit` and the plain model can't answer. The page
+reflects this: the instant table shows the verdicts, and the report leads with **What changes on
+the way**. Each changelog source shows a verbatim quote of the cited lines, which code takes from
+the passage text, not the model.
 
 **Clarification (not one of the 3 graded samples):** "Is my stack safe?" gets a clarifying
 question asking for the pinned versions in about 6 s, with no research.
