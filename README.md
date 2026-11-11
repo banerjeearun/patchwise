@@ -311,6 +311,81 @@ question asking for the pinned versions in about 6 s, with no research.
 
 ---
 
+## Evals
+
+### E1: retrieval quality (`evals/retrieval_eval.py`)
+
+E1 asks whether search puts the right release note near the top, and whether each design choice
+earns its place. It makes **no model calls**: queries are embedded locally, and the whole run takes
+about 20 seconds.
+
+**Samples.** One per advisory, generated from the snapshot with no hand-picking. None of them
+appear in any prompt.
+
+| Set | Query | Example |
+|---|---|---|
+| **describe** | The advisory's summary, as pasted from an alert | "Starlette Denial of service (DoS) via multipart/form-data" |
+| **id** | Only its CVE ID (or GHSA ID if there's no CVE) | "CVE-2024-47874" |
+
+**Gold** (silver, really: derived from the data, not hand-labelled):
+
+| Gold | Counts as correct | Source |
+|---|---|---|
+| **strict** | A chunk that names the advisory or one of its aliases | The index's `advisory_ids` column, extracted from the changelog text |
+| **lenient** | Strict, plus any chunk from a release that fixed it | Fix versions computed from OSV ranges |
+
+Advisories with no release notes in the snapshot are skipped, because there's nothing to retrieve.
+
+**Arms.** Each adds one technique to the previous one:
+1. **vector:** top-k over all 2,602 chunks.
+2. **+ filter:** prefilter by package and by versions after the earliest affected release.
+3. **+ hybrid:** adds BM25 keyword search, fused with the vectors by RRF. This is what PatchWise uses.
+
+**Results.** Cells show hit@5 / MRR@10.
+
+| Query set | Gold | n | ±1/√n | vector | + filter | + hybrid (prod) |
+|---|---|---|---|---|---|---|
+| describe | strict | 202 | 0.07 | 0.62 / 0.51 | 0.64 / 0.53 | **0.71 / 0.59** |
+| describe | lenient | 294 | 0.06 | 0.53 / 0.42 | 0.55 / 0.44 | **0.62 / 0.52** |
+| id | strict | 202 | 0.07 | 0.03 / 0.02 | 0.15 / 0.08 | **0.81 / 0.45** |
+
+**Hybrid search is the gain that clearly beats the margin of error.**
+- *ID queries:* hit@5 goes from 0.15 to 0.81, a jump of +0.66 against a margin of ±0.07.
+  Embeddings can't match `CVE-2024-47874` to a changelog line; BM25 matches it exactly.
+- *describe queries:* hybrid beats plain vector by +0.09 (strict) and +0.09 (lenient). Both are
+  above the ±0.07 and ±0.06 margins.
+- Against the filtered arm, hybrid gains +0.07, which is right at the margin rather than clearly
+  past it.
+
+**The filter barely moves ranking on described queries:** +0.02, inside the margin. That's because
+the summaries already name the package. Its real job in PatchWise is correctness, not ranking: a
+"what changes between my pin and the target" search can only return notes from versions in that
+range. It does help ID queries (+0.12), where the query text carries no package signal.
+
+**Where it still misses.** The weakest results are for very generic summaries such as "SQL
+Injection in Django" or "Path Traversal in Django". Django has fixed many issues with those
+names, so the top 5 often holds a *different* fix of the same kind.
+
+| Package | describe hit@5 |
+|---|---|
+| starlette | 3/3 |
+| cryptography | 9/11 |
+| urllib3 | 7/9 |
+| django | 61/78 |
+| pillow | 62/96 |
+| aiohttp | 1/5 |
+
+This is why researchers try **exact lookups first**. `notes_for_advisory` finds chunks by advisory ID
+or alias, plus the notes at the fix version computed from OSV ranges. They use `search_docs` for open
+questions like "what breaks between X and Y".
+
+**A bug E1 found.** Building the samples crashed on two Pillow advisories whose only IDs are OSS-Fuzz
+ones (`OSV-2022-715`, `OSV-2022-1074`): `notes_for_advisory` built an empty SQL filter. It's fixed,
+with a regression test in `tests/test_search.py`.
+
+**Run it:** `uv run python evals/retrieval_eval.py`. It prints the table above and writes every
+sample and per-arm score to `evals/results_retrieval.json`.
+
 ## Run it locally
 
 ```bash
@@ -318,7 +393,8 @@ uv sync
 gcloud auth application-default login     # Vertex AI credentials; the project comes from gcloud's default
 # .env is optional: GITHUB_TOKEN is only used by build/fetch_changelogs.py
 uv run python app.py                       # http://localhost:8000
-uv run pytest -q                           # 29 tests: version ranges, chunking, retrieval
+uv run pytest -q                           # 32 tests: version ranges, chunking, retrieval, citations
+uv run python evals/retrieval_eval.py      # E1 retrieval eval, ~20 s, no model calls
 ```
 
 The tests cover the parts where a wrong answer would look plausible:
@@ -343,13 +419,15 @@ The tests cover the parts where a wrong answer would look plausible:
   support policy can differ.
 - **No end-of-life data.** The agent is told not to claim a line is end-of-life, because the
   snapshot doesn't contain that information.
-- **No formal eval suite yet.** Correctness rests on unit tests of the code-computed verdicts
-  plus the hand-checked samples above.
+- **The evals cover retrieval (E1), not the whole report.** Report correctness rests on unit tests
+  of the code-computed verdicts, the hand-checked samples, and the retrieval ablation above.
 
 ## Future work
 
-- An eval set generated from OSV ranges (affected or not, smallest fix), scored against the
-  agent's final report. Compare retrieval with vector only, vector + filter, and hybrid search.
+- E2, end to end: about 50 (package, pin) cases generated from OSV ranges, with the report's
+  recommended versions checked against the code's answer. Then an LLM judge (Inspect AI) checks
+  that each cited sentence matches its passage.
+- A cross-encoder reranker as a 4th arm in E1, aimed at the generic-summary misses.
 - More packages (requests, jinja2, werkzeug, setuptools), and resolving lock files and
   transitive dependencies.
 - Streaming researcher progress to the page (SSE) instead of one response at the end.
@@ -365,6 +443,7 @@ tools/              versions.py (OSV range logic) · search.py (LanceDB retrieva
 build/              offline snapshot builders
 data/               the snapshot (advisories, releases, changelogs, LanceDB index)
 tests/              pytest
+evals/              retrieval_eval.py (E1) + results_retrieval.json
 scripts/            check_packages.py (how the 6 packages were chosen)
 samples/            full text of the README comparisons (agent vs no tools, and the no-retrieval ablation)
 ```

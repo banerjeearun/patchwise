@@ -77,7 +77,8 @@ def notes_for_advisory(package: str, advisory_id: str, limit: int = 8) -> dict:
         return {"error": f"No advisory '{advisory_id}' for {package} in this snapshot."}
     ids = [i.upper() for i in adv.ids if ID_OK.match(i)]
     like = " OR ".join(f"advisory_ids LIKE '%|{i}|%'" for i in ids)
-    named = table().search().where(f"package = '{package}' AND ({like})").limit(limit).to_list()
+    # Some advisories only have IDs that changelogs never use (e.g. OSS-Fuzz OSV-2022-715): skip the name search.
+    named = table().search().where(f"package = '{package}' AND ({like})").limit(limit).to_list() if ids else []
     fix_versions = [ln["earliest_fix"] for ln in fixes_by_branch(package, adv.id)["lines"].values() if ln["earliest_fix"]]
     seen = {r["chunk_id"] for r in named}
     at_fix = []

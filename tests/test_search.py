@@ -34,3 +34,10 @@ def test_errors_not_exceptions():
     assert "error" in search_docs("x", "flask")
     assert "error" in search_docs("x", "django", after_version="banana")
     assert "error" in notes_for_advisory("django", "CVE-1999-0000")
+
+
+def test_notes_for_advisory_with_only_oss_fuzz_id():
+    # OSV-2022-715 has no CVE/GHSA/PYSEC alias; this used to build an empty SQL filter and crash.
+    r = notes_for_advisory("pillow", "OSV-2022-715")
+    assert "error" not in r
+    assert r["naming_the_advisory"] == []
