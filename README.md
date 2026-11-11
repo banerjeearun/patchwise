@@ -74,11 +74,19 @@ package in your file is listed as **not checked**, which does **not** mean it's 
 | **Clarification gate** | The Lead answers `CLARIFY: <question>` when the input has no usable pins. `/chat` keeps the session going so the reply is read together with the first message. |
 | **Writer + code verifier** | The Writer only sees the question, the triage table and the findings. Then code checks every citation (see below). |
 
-**If a researcher fails:** a researcher can fail, for example when Vertex returns a 429 rate
-limit while several run at once. It is retried with backoff (5 s, then 15 s). If it still fails,
-code pulls the release-note passages between the pin and the target, with no model call, so the
-report keeps cited "what changes" content. The trace shows these steps as `error` and
-`fallback_research`.
+**When Vertex AI rate-limits (429):** every model call is retried with backoff (8 s, then 20 s),
+and only while enough of the time budget is left. If a call still fails, code takes over that
+agent's job, so the user always gets a cited report:
+
+| Agent that fails | What code does instead |
+|---|---|
+| Researcher | Pulls the release-note passages between the pin and the target itself, with citations |
+| Lead | Asks for exact pins if nothing can be checked. Otherwise it sends one researcher per affected pin, in parallel. |
+| Writer | Builds the report from the triage verdicts plus each researcher's notes, unedited, with citations still checked |
+
+The trace shows each step as `error`, `fallback_research`, `fallback_lead` or `fallback_report`.
+Researchers also have a tool budget of 10 calls enforced in code, and they start 1.5 s apart, to
+reduce bursts.
 
 **Why the version logic is code, not the model:** whether `4.2.10` falls inside an OSV range
 (`introduced` / `fixed` / `last_affected`) is a comparison done with `packaging.version`. The

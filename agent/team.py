@@ -15,6 +15,7 @@ from __future__ import annotations
 import asyncio
 import json
 import re
+import time
 from dataclasses import dataclass, field
 
 from agents import Agent, RunContextWrapper, RunHooks, Runner, function_tool, set_tracing_disabled
@@ -36,6 +37,11 @@ class Run:
     researchers: int = 0
     findings: list[dict] = field(default_factory=list)
     tool_calls: int = 0  # per researcher: each researcher gets its own Run sharing calls/passages
+    t0: float = field(default_factory=time.monotonic)
+
+    def left(self) -> float:
+        """Seconds left before the request timeout."""
+        return config.REQUEST_TIMEOUT_S - (time.monotonic() - self.t0)
 
 
 def agent_label(agent: Agent) -> str:
@@ -254,7 +260,12 @@ async def research(ctx: RunContextWrapper[Run], package: str, pinned_version: st
         pinned_version: The user's exact pinned version.
         task: What to find out, specific to this package (mention any advisory ID the user asked about).
     """
-    run = ctx.context
+    return await run_researcher(ctx.context, package, pinned_version, task)
+
+
+async def run_researcher(run: Run, package: str, pinned_version: str, task: str) -> str:
+    """One researcher, with backoff and a code fallback. Used by the Lead's tool, and directly by
+    code when the Lead itself can't be reached."""
     if run.researchers >= config.MAX_RESEARCHERS:
         return "No researchers left for this request. Reply DONE."
     slot = run.researchers
@@ -262,7 +273,7 @@ async def research(ctx: RunContextWrapper[Run], package: str, pinned_version: st
     agent = make_researcher(package.strip().lower())
     prompt = f"Package: {package}\nPinned version: {pinned_version}\nTask: {task}"
     # Own tool-call counter, shared trace and passages.
-    rctx = Run(calls=run.calls, passages=run.passages)
+    rctx = Run(calls=run.calls, passages=run.passages, t0=run.t0)
     # Still parallel, but don't hit Vertex with every researcher's first request in the same instant.
     await asyncio.sleep(min(slot, 4) * config.RESEARCHER_STAGGER_S)
     out = None
@@ -277,8 +288,9 @@ async def research(ctx: RunContextWrapper[Run], package: str, pinned_version: st
         except Exception as e:  # one failed researcher must not sink the whole request
             run.calls.append({"agent": f"researcher:{package}", "name": "error", "args": {"attempt": attempt + 1},
                               "result": f"{type(e).__name__}: {str(e)[:200]}"})
-            if wait:
-                await asyncio.sleep(wait)
+            if not wait or run.left() < wait + 90:  # no time for another full attempt
+                break
+            await asyncio.sleep(wait)
     if out is None:
         out = fallback_findings(run, package.strip().lower(), pinned_version)
     run.findings.append({"package": package, "pinned": pinned_version, "task": task, "findings": out})
@@ -433,28 +445,111 @@ def apply_citations(text: str, run: Run) -> tuple[str, dict]:
 # --- Entry point ---
 
 
+def _error(run: Run, agent: str, attempt: int, e: Exception) -> None:
+    run.calls.append({"agent": agent, "name": "error", "args": {"attempt": attempt},
+                      "result": f"{type(e).__name__}: {str(e)[:200]}"})
+
+
 async def answer(message: str) -> dict:
     run = Run()
     table = triage(message)
     run.calls.append({"agent": "lead", "name": "triage (code)", "args": {"message": message[:2000]},
                       "result": json.dumps(table)[: config.TOOL_RESULT_CHARS]})
     prompt = f"USER MESSAGE:\n{message}\n\nTRIAGE:\n{json.dumps(table, indent=1)}"
-    lead_result = await Runner.run(lead, prompt, context=run, hooks=Trace(), max_turns=config.LEAD_MAX_TURNS)
-    decision = str(lead_result.final_output).strip()
+
+    # Lead, with backoff. Vertex can return 429 when the project is busy.
+    decision = None
+    for attempt, wait in enumerate((8, 20, None), 1):
+        try:
+            lead_result = await Runner.run(lead, prompt, context=run, hooks=Trace(), max_turns=config.LEAD_MAX_TURNS)
+            decision = str(lead_result.final_output).strip()
+            break
+        except Exception as e:
+            _error(run, "lead", attempt, e)
+            if run.findings or not wait or run.left() < 150:
+                break  # research already happened (don't redo it), or no time for another try
+            await asyncio.sleep(wait)
+
+    if decision is None:
+        decision = await lead_fallback(run, table)
 
     if decision.upper().startswith("CLARIFY"):
         question = decision.split(":", 1)[1].strip() if ":" in decision else decision
         return {"response": question, "tool_calls": _clean(run.calls), "clarify": True}
 
     findings = "\n\n---\n\n".join(f"{f['findings']}" for f in run.findings) or "(no researchers were needed)"
-    w = await Runner.run(writer, f"USER MESSAGE:\n{message}\n\nTRIAGE:\n{json.dumps(table, indent=1)}\n\n"
-                                 f"FINDINGS:\n{findings}", context=run, hooks=Trace(), max_turns=2)
-    text, check = apply_citations(str(w.final_output), run)
+    draft = None
+    for attempt, wait in enumerate((8, 20, None), 1):
+        if run.left() < 25:
+            break
+        try:
+            w = await Runner.run(writer, f"USER MESSAGE:\n{message}\n\nTRIAGE:\n{json.dumps(table, indent=1)}\n\n"
+                                         f"FINDINGS:\n{findings}", context=run, hooks=Trace(), max_turns=2)
+            draft = str(w.final_output)
+            break
+        except Exception as e:
+            _error(run, "writer", attempt, e)
+            if not wait or run.left() < wait + 30:
+                break
+            await asyncio.sleep(wait)
+    if draft is None:
+        draft = code_report(table, run.findings)
+        run.calls.append({"agent": "code", "name": "fallback_report", "args": {}, "result": "writer unavailable"})
+    text, check = apply_citations(draft, run)
     run.calls.append({"agent": "writer", "name": "write_report", "args": {"findings": len(run.findings)},
                       "result": f"{len(text)} chars"})
     run.calls.append({"agent": "writer", "name": "citation_check (code)", "args": {},
                       "result": json.dumps(check)})
     return {"response": text, "tool_calls": _clean(run.calls), "clarify": False}
+
+
+async def lead_fallback(run: Run, table: dict) -> str:
+    """The Lead couldn't be reached: do its job in code. Clarify if nothing is checkable,
+    otherwise send one researcher per affected pin that wasn't researched yet, in parallel."""
+    run.calls.append({"agent": "code", "name": "fallback_lead", "args": {}, "result": "lead unavailable"})
+    pins = [p for p in table["checked_pins"] if p["advisories_affecting_pin"] > 0]
+    if not table["checked_pins"] and not table["not_covered"]:
+        return ("CLARIFY: Which exact versions are you on? Paste your requirements.txt, or lines like "
+                "django==4.2.10, for any of: django, urllib3, pillow, aiohttp, starlette, cryptography.")
+    done = {f["package"].strip().lower() for f in run.findings}
+    asked = [a["id"] for a in table.get("advisory_ids", [])]
+    todo = [p for p in pins if p["package"] not in done]
+    await asyncio.gather(*(run_researcher(
+        run, p["package"], p["pinned"],
+        "Verdict, smallest safe upgrade, and what changes on the way to it (cited release notes)."
+        + (f" The user asked about: {', '.join(asked)}." if asked else "")) for p in todo))
+    return "DONE"
+
+
+def code_report(table: dict, findings: list[dict]) -> str:
+    """The writer couldn't be reached: the triage verdicts plus each researcher's findings, as is."""
+    out = ["Summary assembled by code: the writing model was busy, so below are the computed "
+           "verdicts and each package's research notes, unedited."]
+    by_pkg = {f["package"].strip().lower(): f["findings"] for f in findings}
+    for p in table["checked_pins"]:
+        pkg, pin = p["package"], p["pinned"]
+        out.append(f"\n### {pkg}=={pin}")
+        if p["advisories_affecting_pin"] == 0:
+            out.append(f"No advisories in the PatchWise snapshot affect this version [V:{pkg}=={pin}].")
+            continue
+        full = p.get("smallest_full_fix") or {}
+        line = f"**Verdict:** affected by {p['advisories_affecting_pin']} advisories [V:{pkg}=={pin}]"
+        if full.get("version"):
+            line += f" · smallest full fix {full['version']} ({full.get('jump')} jump) [V:{pkg}=={full['version']}]"
+        part = p.get("best_partial_on_line")
+        if p.get("full_fix_on_same_line"):
+            line += f" · on your line: {p['full_fix_on_same_line']} clears all"
+        elif part:
+            line += f" · on your line: {part['version']} clears {part['cleared']}, leaves {part['remaining']}"
+        out.append(line)
+        if pkg in by_pkg:
+            out.append("\n" + by_pkg[pkg])
+    if table["not_covered"] or table["unpinned_or_unknown"]:
+        skipped = [str(x.get("package", x)) if isinstance(x, dict) else str(x)
+                   for x in table["not_covered"] + table["unpinned_or_unknown"]]
+        out.append("\n**Not checked:** " + ", ".join(skipped) + ". Not checked does NOT mean safe; "
+                   "check these with osv.dev or pip-audit.")
+    return "\n".join(out)
 
 
 def _clean(calls: list[dict]) -> list[dict]:
