@@ -4,187 +4,222 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>PatchWise</title>
+<meta name="color-scheme" content="dark">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%27%233ddc97%27 stroke-width=%272.4%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27%3E%3Cpath d=%27M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z%27/%3E%3Cpath d=%27m9 12 2 2 4-4%27/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
 <style>
 :root {
-  --bg: #f7f6f2; --surface: #ffffff; --sunken: #efede6; --ink: #1d1c19; --ink-2: #57544c;
-  --ink-3: #8a867b; --line: #e2dfd6; --focus: #2f5bd3;
-  --bad: #b42318; --bad-bg: #fdecea; --mid: #a15c07; --mid-bg: #fdf3e2;
-  --ok: #17703f; --ok-bg: #e7f4ec; --none: #6b675e; --none-bg: #efede6;
+  --bg: #0a0e13; --surface: #10161d; --raised: #151d26; --sunken: #0d1218; --line: #212c38; --line-2: #2c3a49;
+  --ink: #e4ebf2; --ink-2: #a3b3c4; --ink-3: #6c7e91;
+  --signal: #3ddc97; --signal-bg: #0f2a1f; --cyan: #5cc8ff; --cyan-bg: #0f2433;
+  --bad: #ff6b6b; --bad-bg: #2d1416; --mid: #f5b14c; --mid-bg: #2c2112; --none: #8b98a6; --none-bg: #1a222c;
   --sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #151513; --surface: #1d1d1a; --sunken: #252521; --ink: #ecebe6; --ink-2: #b4b1a7;
-    --ink-3: #85827a; --line: #33322d; --focus: #7b9cff;
-    --bad: #ff8a7a; --bad-bg: #3a1d19; --mid: #f0b45a; --mid-bg: #352a17;
-    --ok: #6fd39b; --ok-bg: #17301f; --none: #a9a59b; --none-bg: #2a2925;
-  }
-}
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
-body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.55 var(--sans); }
-a { color: inherit; }
-code, .mono { font-family: var(--mono); font-size: 0.92em; }
-:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+body { margin: 0; color: var(--ink); font: 15px/1.6 var(--sans); background: var(--bg);
+  min-height: 100vh; display: flex; flex-direction: column; }
+a { color: var(--cyan); }
+code { font-family: var(--mono); font-size: 0.9em; background: var(--raised); border: 1px solid var(--line); padding: 0 5px; border-radius: 4px; }
+:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+.mono { font-family: var(--mono); }
 
-.top { border-bottom: 1px solid var(--line); }
-.top .in { max-width: 980px; margin: 0 auto; padding: 14px 16px; display: flex; align-items: baseline;
-  justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-.brand { font-weight: 600; font-size: 18px; letter-spacing: -0.01em; }
-.brand span { font-family: var(--mono); font-weight: 500; font-size: 12px; color: var(--ink-3); margin-left: 8px; }
-.meta { font-size: 13px; color: var(--ink-3); }
-.meta a { color: var(--ink-2); }
+/* header */
+.top { position: sticky; top: 0; z-index: 5; border-top: 2px solid var(--signal); background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+.top .in { max-width: 880px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; font: 600 17px var(--mono); letter-spacing: -0.01em; }
+.brand svg { color: var(--signal); flex: none; }
+.brand small { font: 400 12px var(--sans); color: var(--ink-3); }
+.status { margin-left: auto; display: flex; align-items: center; gap: 8px; font: 12px var(--mono); color: var(--ink-3); }
+.btn { border: 1px solid var(--line-2); background: var(--raised); color: var(--ink); border-radius: 7px; padding: 6px 12px;
+  font: 500 13px var(--sans); cursor: pointer; white-space: nowrap; }
+.btn:hover { border-color: var(--cyan); }
+@media (max-width: 640px) { .status .long, .brand small { display: none; } }
 
-main { max-width: 980px; margin: 0 auto; padding: 28px 16px 72px; }
-.lede { max-width: 640px; }
-.lede h1 { font-size: 26px; line-height: 1.25; font-weight: 600; letter-spacing: -0.015em; margin: 0 0 8px; }
-.lede p { margin: 0; color: var(--ink-2); }
+/* thread */
+main { flex: 1; width: 100%; max-width: 880px; margin: 0 auto; padding: 24px 16px 24px; display: flex; flex-direction: column; gap: 22px; }
+.msg { display: flex; gap: 12px; align-items: flex-start; }
+.body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+.user { justify-content: flex-end; }
+.bubble { max-width: 78%; background: var(--cyan-bg); border: 1px solid #1d4560; border-radius: 12px 12px 2px 12px;
+  padding: 10px 14px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.bubble.code { font: 13px/1.55 var(--mono); }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; }
+.panel h2 { font: 600 15px var(--sans); color: var(--ink); margin: 0 0 12px; }
 
-.composer { margin-top: 22px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
-.tabs { display: flex; gap: 2px; padding: 8px 8px 0; flex-wrap: wrap; border-bottom: 1px solid var(--line); }
-.tab { border: 0; background: none; font: 500 13px var(--sans); color: var(--ink-2); padding: 7px 10px 9px;
-  cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
-.tab:hover { color: var(--ink); }
-.tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--ink); }
-.drop { position: relative; }
-textarea { display: block; width: 100%; min-height: 150px; resize: vertical; border: 0; background: transparent;
-  color: var(--ink); padding: 14px 16px; font: 14px/1.6 var(--mono); }
-textarea:focus { outline: none; }
-.drop.over::after { content: "Drop requirements.txt"; position: absolute; inset: 6px; display: grid; place-items: center;
-  border: 2px dashed var(--focus); border-radius: 8px; background: color-mix(in srgb, var(--surface) 85%, transparent);
-  font-weight: 500; color: var(--focus); }
-.bar { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-top: 1px solid var(--line); flex-wrap: wrap; }
-.bar .hint { font-size: 12.5px; color: var(--ink-3); margin-right: auto; }
-.btn { border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 7px;
-  padding: 7px 13px; font: 500 14px var(--sans); cursor: pointer; }
-.btn:hover { background: var(--sunken); }
-.btn.primary { background: var(--ink); color: var(--bg); border-color: var(--ink); }
-.btn.primary:hover { opacity: 0.88; }
-.btn:disabled { opacity: 0.5; cursor: progress; }
-.linkish { background: none; border: 0; padding: 0; font: inherit; color: var(--ink-2); text-decoration: underline;
-  text-underline-offset: 2px; cursor: pointer; }
+/* welcome */
+.intro p { margin: 0; max-width: 680px; }
+.intro .mono { color: var(--ink); }
+.tries { font-size: 14px; color: var(--ink-2); }
+.ex { background: none; border: 0; padding: 0; font: inherit; color: var(--cyan); cursor: pointer; text-decoration: underline;
+  text-underline-offset: 3px; text-decoration-color: color-mix(in srgb, var(--cyan) 40%, transparent); }
+.ex:hover { text-decoration-color: var(--cyan); }
+.ex:disabled { color: var(--ink-3); cursor: progress; }
 
-.covers { margin-top: 10px; font-size: 13px; color: var(--ink-3); }
-.covers code { color: var(--ink-2); }
+/* scan cards */
+.prov { font-size: 12.5px; color: var(--ink-3); margin: -4px 0 12px; }
+.prov b { color: var(--ink-2); font-weight: 500; }
+.cards { display: grid; gap: 10px; }
+.card { border: 1px solid var(--line); border-radius: 8px; padding: 11px 14px; background: var(--sunken); }
+.card .row { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.card .pkg { font: 600 15px var(--mono); }
+.pill { font-size: 12px; font-weight: 600; color: var(--c); background: var(--cbg); border-radius: 99px; padding: 1px 9px; }
+.card .count { margin-left: auto; font: 12.5px var(--mono); color: var(--ink-3); }
+.card ul { margin: 6px 0 0; padding: 0; list-style: none; font-size: 14px; }
+.card li { padding-left: 16px; position: relative; margin: 2px 0; }
+.card li::before { content: "›"; position: absolute; left: 2px; color: var(--ink-3); }
+.v { font-family: var(--mono); font-weight: 600; }
+.why { color: var(--ink-3); font-size: 13px; }
+.s-bad { --c: var(--bad); --cbg: var(--bad-bg); }
+.s-mid { --c: var(--mid); --cbg: var(--mid-bg); }
+.s-ok { --c: var(--signal); --cbg: var(--signal-bg); }
+.s-none { --c: var(--none); --cbg: var(--none-bg); }
+details.adv { margin-top: 6px; font-size: 13px; }
+details.adv summary { cursor: pointer; color: var(--cyan); }
+details.adv ol { margin: 6px 0 0; padding-left: 20px; max-height: 260px; overflow: auto; color: var(--ink-2); }
+details.adv li { padding: 0; }
+details.adv li::before { content: none; }
+.notchecked { border: 1px dashed var(--line-2); border-radius: 8px; padding: 10px 14px; font-size: 13.5px; color: var(--ink-2); }
+.notchecked b { color: var(--none); }
 
-.thread { margin-top: 34px; display: flex; flex-direction: column; gap: 40px; }
-.turn { display: flex; flex-direction: column; gap: 14px; }
-.asked { font: 13px/1.55 var(--mono); color: var(--ink-2); white-space: pre-wrap; border-left: 2px solid var(--line);
-  padding: 2px 0 2px 12px; max-height: 9.5em; overflow: auto; }
-.label { font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); margin: 0 0 8px; }
+/* scan header, exposure summary, upgrade path */
+.panel h2 .cmd { float: right; font: 400 12px var(--mono); color: var(--ink-3); }
+.panel h2 .cmd b { color: var(--signal); font-weight: 500; }
+.score { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--line);
+  border: 1px solid var(--line); border-radius: 8px; overflow: hidden; margin-bottom: 12px; }
+.score div { background: var(--sunken); padding: 10px 12px; }
+.score b { display: block; font: 600 22px/1.2 var(--mono); }
+.score span { font-size: 12px; color: var(--ink-3); }
+.score .hot b { color: var(--bad); } .score .warm b { color: var(--mid); } .score .cool b { color: var(--signal); }
+.track { display: flex; align-items: flex-start; margin: 8px 0 6px; padding-top: 22px; overflow-x: auto; }
+.stop { flex: none; display: flex; flex-direction: column; align-items: center; min-width: 78px; text-align: center; }
+.stop i { width: 12px; height: 12px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 4px var(--cbg); margin: 4px 0 7px; }
+.stop b { font: 600 13px var(--mono); }
+.stop small { font-size: 11.5px; color: var(--ink-3); white-space: nowrap; }
+.seg { flex: 1; min-width: 60px; height: 2px; background: var(--line-2); margin-top: 9px; position: relative; }
+.seg em { position: absolute; top: -19px; left: 50%; transform: translateX(-50%); font: 11px var(--mono); font-style: normal;
+  color: var(--ink-3); white-space: nowrap; }
+.seg.j-major { background: repeating-linear-gradient(90deg, var(--bad) 0 6px, transparent 6px 11px); } .seg.j-major em { color: var(--bad); }
+.seg.j-minor { background: var(--mid); } .seg.j-minor em { color: var(--mid); }
+.seg.j-patch, .seg.j-line { background: var(--signal); } .seg.j-patch em, .seg.j-line em { color: var(--signal); }
+.agents { display: grid; gap: 6px; font-size: 13.5px; }
+.ag { display: flex; align-items: center; gap: 10px; }
+.ag .mono { color: var(--ink); }
+.ag.dim { color: var(--ink-3); } .ag.dim .mono { color: var(--ink-3); }
+.ag .wait { width: 14px; height: 14px; border-radius: 50%; border: 2px dashed var(--line-2); flex: none; }
 
-.verdicts { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
-.verdicts header { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; padding: 12px 16px 10px; flex-wrap: wrap; }
-.verdicts header .label { margin: 0; }
-.verdicts header small { color: var(--ink-3); font-size: 12.5px; }
-.scroll { overflow-x: auto; }
-table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: 14px; }
-th { text-align: left; font-weight: 500; font-size: 12.5px; color: var(--ink-3); padding: 8px 16px; border-top: 1px solid var(--line); }
-td { padding: 11px 16px; border-top: 1px solid var(--line); vertical-align: top; }
-td.pkg { font-family: var(--mono); white-space: nowrap; }
-td.num { font-variant-numeric: tabular-nums; }
-.state { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 500; padding: 2px 8px;
-  border-radius: 99px; white-space: nowrap; }
-.state::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
-.s-bad { color: var(--bad); background: var(--bad-bg); }
-.s-mid { color: var(--mid); background: var(--mid-bg); }
-.s-ok { color: var(--ok); background: var(--ok-bg); }
-.s-none { color: var(--none); background: var(--none-bg); }
-.ver { font-family: var(--mono); }
-.jump { font-size: 11.5px; color: var(--ink-3); margin-left: 6px; }
-.sub { display: block; font-size: 12.5px; color: var(--ink-3); margin-top: 2px; }
-
+/* progress */
 .progress { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--ink-2); }
-.pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--focus); animation: p 1.2s ease-in-out infinite; }
-@keyframes p { 50% { opacity: 0.25; } }
-.progress .t { font-family: var(--mono); font-size: 12.5px; color: var(--ink-3); }
+.radar { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--signal); border-top-color: transparent; animation: spin 0.9s linear infinite; flex: none; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.progress .t { font: 12.5px var(--mono); color: var(--ink-3); }
+.progress .sub { color: var(--ink-3); font-size: 12.5px; }
 
-.report { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 6px 22px 18px; overflow-wrap: anywhere; }
-.report h3 { font-family: var(--mono); font-size: 15px; font-weight: 500; margin: 22px 0 6px; padding-top: 16px; border-top: 1px solid var(--line); }
-.report h3:first-of-type { border-top: 0; padding-top: 0; }
-.report p:first-child { font-size: 16px; }
-.report ul { padding-left: 20px; }
-.report li { margin: 3px 0; }
-.report a[href] { color: var(--ink-2); text-decoration: none; font-family: var(--mono); font-size: 11.5px;
-  vertical-align: super; margin-left: 1px; }
-.report a[href]:hover { color: var(--focus); }
-.report ol a[href] { font-family: var(--sans); font-size: 13px; vertical-align: baseline; text-decoration: underline;
-  text-underline-offset: 2px; }
-.report ol { font-size: 13px; color: var(--ink-2); padding-left: 22px; }
-.report code { background: var(--sunken); padding: 1px 5px; border-radius: 4px; }
-.report ol em { display: block; font-style: normal; color: var(--ink-3); border-left: 2px solid var(--line);
-  padding-left: 8px; margin: 3px 0 8px; }
-.report .changes { margin: 12px 0 4px; font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-2); }
-.report .changes + ul { border-left: 3px solid var(--focus); padding-left: 24px; margin-left: 0; }
-.question { border-left: 3px solid var(--mid); background: var(--surface); border-radius: 0 10px 10px 0; padding: 12px 16px;
-  border-top: 1px solid var(--line); border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
-.question .label { color: var(--mid); }
+/* report */
+.report .bottom { font-size: 15.5px; margin: 0 0 12px; }
+.report .bottom p { margin: 0 0 8px; }
+details.pkgsec { border: 1px solid var(--line); border-radius: 8px; margin: 8px 0; background: var(--sunken); }
+details.pkgsec > summary { cursor: pointer; padding: 10px 14px; font: 600 14.5px var(--mono); list-style: none; display: flex; gap: 8px; }
+details.pkgsec > summary::before { content: "▸"; color: var(--ink-3); }
+details.pkgsec[open] > summary::before { content: "▾"; }
+details.pkgsec > .in { padding: 0 16px 12px; overflow-wrap: anywhere; }
+.report ul { padding-left: 20px; margin: 4px 0 10px; }
+.report li { margin: 4px 0; }
+.report p { margin: 6px 0; }
+.report a.cite { font: 500 10.5px var(--mono); color: var(--cyan); text-decoration: none; vertical-align: super; margin-left: 1px;
+  padding: 0 2px; border-radius: 3px; }
+.report a.cite:hover { background: var(--cyan-bg); }
+.report .changes { margin: 12px 0 4px; font-weight: 600; color: var(--ink); }
+details.sources { margin-top: 12px; font-size: 13px; color: var(--ink-2); }
+details.sources > summary { cursor: pointer; color: var(--ink-2); }
+.srcgroup { margin-top: 8px; }
+.srcgroup h4 { margin: 0 0 2px; font: 600 13px var(--sans); color: var(--ink-2); }
+.srcgroup ol { margin: 0; padding-left: 28px; }
+.srcgroup li { margin: 3px 0; }
+.srcgroup a { color: var(--ink-2); }
+.srcgroup em { display: block; font-style: normal; color: var(--ink-3); border-left: 2px solid var(--line-2); padding-left: 8px; margin: 2px 0 6px; }
+.question { border-color: #5a4320; }
+.question h2 { color: var(--mid); }
 .error { color: var(--bad); }
 
-details.work summary { cursor: pointer; font-size: 13.5px; color: var(--ink-2); list-style: none; }
-details.work summary::before { content: "▸ "; color: var(--ink-3); }
-details.work[open] summary::before { content: "▾ "; }
-.lanes { display: grid; gap: 14px; margin-top: 12px; }
-.lane h4 { margin: 0 0 4px; font: 500 13px var(--mono); }
+/* trace */
+details.work summary { cursor: pointer; font-size: 13px; color: var(--ink-3); }
+.lanes { display: grid; gap: 12px; margin-top: 10px; }
+.lane h4 { margin: 0 0 4px; font: 500 13px var(--mono); color: var(--ink-2); }
 .lane h4 small { font-family: var(--sans); font-weight: 400; color: var(--ink-3); margin-left: 6px; }
-.step { border-left: 1px solid var(--line); margin-left: 4px; padding: 3px 0 3px 14px; font-size: 13px; }
+.step { border-left: 1px solid var(--line-2); margin-left: 4px; padding: 3px 0 3px 14px; font-size: 12.5px; }
 .step summary { cursor: pointer; list-style: none; }
-.step summary .fn { font-family: var(--mono); }
+.step summary .fn { font-family: var(--mono); color: var(--ink-2); }
 .step summary .gist { color: var(--ink-3); margin-left: 6px; }
-.step pre { font: 12px/1.5 var(--mono); white-space: pre-wrap; background: var(--sunken); border-radius: 6px; padding: 10px;
-  max-height: 280px; overflow: auto; margin: 6px 0 4px; }
+.step pre { font: 12px/1.5 var(--mono); white-space: pre-wrap; background: var(--sunken); border: 1px solid var(--line); border-radius: 6px;
+  padding: 10px; max-height: 260px; overflow: auto; margin: 6px 0 4px; color: var(--ink-2); }
 
-footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 13px; color: var(--ink-3); max-width: 720px; }
-footer p { margin: 0 0 6px; }
-@media (max-width: 640px) { .lede h1 { font-size: 22px; } .report { padding: 4px 16px 14px; } }
+/* composer */
+.composer { position: sticky; bottom: 0; z-index: 5; background: var(--bg); border-top: 1px solid var(--line); padding: 12px 16px 14px; }
+.box { max-width: 848px; margin: 0 auto; display: flex; align-items: flex-end; gap: 8px; background: var(--surface);
+  border: 1px solid var(--line-2); border-radius: 12px; padding: 8px; }
+.box:focus-within { border-color: var(--ink-3); }
+.box.over { border-style: dashed; border-color: var(--signal); }
+textarea { flex: 1; min-height: 40px; max-height: 220px; resize: none; overflow-y: hidden; white-space: pre-wrap; border: 0; background: transparent; color: var(--ink);
+  padding: 8px 6px; font: 14px/1.5 var(--mono); }
+textarea:focus { outline: none; }
+textarea::placeholder { color: var(--ink-3); }
+.icon { border: 0; background: none; color: var(--ink-3); cursor: pointer; padding: 8px; border-radius: 8px; display: grid; place-items: center; }
+.icon:hover { color: var(--ink); background: var(--raised); }
+.send { border: 0; background: var(--signal); color: #04140d; border-radius: 8px; padding: 9px 14px; font: 600 14px var(--sans); cursor: pointer; }
+.send:disabled { opacity: 0.45; cursor: progress; }
+.hint { max-width: 848px; margin: 6px auto 0; font-size: 12px; color: var(--ink-3); text-align: center; }
+@media (max-width: 640px) { .score { grid-template-columns: repeat(2, 1fr); } .bubble { max-width: 92%; } .panel { padding: 14px; } }
 </style>
 </head>
 <body>
-<div class="top"><div class="in">
-  <div class="brand">PatchWise <span>advisory triage for Python pins</span></div>
-  <div class="meta">Snapshot 2026-11-05 · 392 advisories · <a href="https://github.com/banerjeearun/patchwise" target="_blank" rel="noopener">source</a></div>
-</div></div>
-
-<main>
-  <div class="lede">
-    <h1>Which advisories actually hit your pinned versions, and what's the smallest upgrade that clears them?</h1>
-    <p>Paste exact pins or a requirements.txt. Version math is done in code against OSV and PyPI.
-      Researchers then read each project's release notes to tell you what changes on the way, with sources.</p>
+<header class="top"><div class="in">
+  <div class="brand">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
+    PatchWise <small>security advisory triage for Python</small>
   </div>
+  <div class="status"><span>snapshot 2026-11-05</span><span class="long">· 392 advisories · 1,345 releases</span></div>
+  <button class="btn" id="reset" title="Start a new check">New check</button>
+</div></header>
 
-  <div class="composer">
-    <div class="tabs" role="tablist" aria-label="Examples">
-      <button class="tab" role="tab" aria-selected="true" data-ex="django">Django app</button>
-      <button class="tab" role="tab" aria-selected="false" data-ex="async">Async API</button>
-      <button class="tab" role="tab" aria-selected="false" data-ex="cve">One CVE</button>
-      <button class="tab" role="tab" aria-selected="false" data-ex="vague">Vague question</button>
-      <button class="tab" role="tab" aria-selected="false" data-ex="blank">Your own</button>
-    </div>
-    <div class="drop" id="drop">
-      <textarea id="q" spellcheck="false" aria-label="Pins, requirements.txt or a question"></textarea>
-    </div>
-    <div class="bar">
-      <span class="hint">Drop a requirements.txt here, or <button class="linkish" id="pick">choose a file</button>. ⌘/Ctrl + Enter to run.</span>
-      <input type="file" id="file" accept=".txt,.in,text/plain" hidden>
-      <button class="btn" id="reset">Clear</button>
-      <button class="btn primary" id="go">Check pins</button>
+<main id="thread">
+  <div class="msg">
+    <div class="body intro">
+      <p>PatchWise checks pinned Python dependencies against known security advisories. Paste a
+        <code>requirements.txt</code>, or ask about one package and a CVE. You get which advisories affect your versions,
+        the smallest upgrade that fixes them, and what changes on the way, with links to the release notes.</p>
+      <p class="why">Covers <span class="mono">django</span>, <span class="mono">urllib3</span>, <span class="mono">pillow</span>,
+        <span class="mono">aiohttp</span>, <span class="mono">starlette</span> and <span class="mono">cryptography</span>.
+        Anything else is listed as not checked, which doesn't mean it's safe.</p>
+      <p class="tries">Try:
+        <button class="ex" data-ex="django">a Django app</button> ·
+        <button class="ex" data-ex="async">an async API</button> ·
+        <button class="ex" data-ex="cve">one CVE</button> ·
+        <button class="ex" data-ex="vague">a question with no versions</button></p>
+      <p class="why">For developers deciding what to upgrade after a security alert, especially when a major-version jump isn't
+        an option this sprint. It can't see your code or your full dependency tree, and knows nothing after the
+        2026-11-05 snapshot. <a href="https://github.com/banerjeearun/patchwise" target="_blank" rel="noopener">How it works</a></p>
     </div>
   </div>
-  <div class="covers">Covers <code>django</code> <code>urllib3</code> <code>pillow</code> <code>aiohttp</code> <code>starlette</code> <code>cryptography</code>. Anything else is listed as not checked.</div>
-
-  <div class="thread" id="thread"></div>
-
-  <footer>
-    <p>Who it's for: developers and on-call engineers triaging a security alert, especially on a release line they can't leave this sprint.</p>
-    <p>What it can't do: see your code (so whether you use the vulnerable feature), resolve your full dependency tree, or know about advisories published after the snapshot. "Not checked" never means safe.</p>
-  </footer>
 </main>
+
+<div class="composer">
+  <div class="box" id="box">
+    <button class="icon" id="pick" title="Attach requirements.txt" aria-label="Attach requirements.txt">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.4 11.6-9.2 9.2a6 6 0 0 1-8.5-8.5l9.2-9.2a4 4 0 0 1 5.7 5.7l-9.2 9.2a2 2 0 0 1-2.8-2.8l8.5-8.5"/></svg>
+    </button>
+    <input type="file" id="file" accept=".txt,.in,text/plain" hidden>
+    <textarea id="q" rows="1" spellcheck="false" placeholder="Paste requirements.txt, or ask about a CVE…" aria-label="Message"></textarea>
+    <button class="send" id="go">Check</button>
+  </div>
+  <div class="hint">Enter to send · Shift+Enter for a new line · drop a requirements.txt onto the box</div>
+</div>
 
 <script>
 const $ = (id) => document.getElementById(id);
@@ -193,90 +228,150 @@ const EXAMPLES = {
   async: "# requirements.txt\nstarlette==0.36.0\naiohttp==3.10.2\nurllib3==2.2.1",
   cve: "We use urllib3==1.26.17. Does CVE-2023-45803 mean we have to move to v2?",
   vague: "Is my stack safe?",
-  blank: "",
 };
-let sessionId = null;
-let pending = "";  // text before a clarifying question, so the reply's verdicts include it
+let sessionId = null, pending = "", busy = false;
 
 // --- composer ---
-function pickExample(key) {
-  document.querySelectorAll(".tab").forEach(t => t.setAttribute("aria-selected", String(t.dataset.ex === key)));
-  $("q").value = EXAMPLES[key];
-  $("q").placeholder = key === "blank" ? "django==4.2.10\naiohttp==3.9.0\n\nor ask: does GHSA-... affect pillow==10.2.0?" : "";
-  $("q").focus();
-}
-document.querySelectorAll(".tab").forEach(t => t.onclick = () => pickExample(t.dataset.ex));
-pickExample("django");
-
-const drop = $("drop");
-["dragenter", "dragover"].forEach(e => drop.addEventListener(e, ev => { ev.preventDefault(); drop.classList.add("over"); }));
-["dragleave", "drop"].forEach(e => drop.addEventListener(e, () => drop.classList.remove("over")));
-drop.addEventListener("drop", ev => { ev.preventDefault(); const f = ev.dataTransfer.files[0]; if (f) readFile(f); });
+const q = $("q");
+const grow = () => { q.style.height = "auto"; q.style.height = Math.min(q.scrollHeight, 220) + "px";
+  q.style.overflowY = q.scrollHeight > 220 ? "auto" : "hidden"; };
+q.addEventListener("input", grow);
+q.addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(q.value); } });
+$("go").onclick = () => send(q.value);
+document.querySelectorAll(".ex").forEach(b => b.onclick = () => send(EXAMPLES[b.dataset.ex]));
+const box = $("box");
+["dragenter", "dragover"].forEach(e => box.addEventListener(e, ev => { ev.preventDefault(); box.classList.add("over"); }));
+["dragleave", "drop"].forEach(e => box.addEventListener(e, () => box.classList.remove("over")));
+box.addEventListener("drop", ev => { ev.preventDefault(); const f = ev.dataTransfer.files[0]; if (f) readFile(f); });
 $("pick").onclick = () => $("file").click();
-$("file").onchange = () => { if ($("file").files[0]) readFile($("file").files[0]); };
+$("file").onchange = () => { if ($("file").files[0]) readFile($("file").files[0]); $("file").value = ""; };
 function readFile(f) {
   if (f.size > 200000) { alert("That file is larger than a requirements.txt should be."); return; }
-  f.text().then(t => { $("q").value = t; pickTabsOff(); $("q").focus(); });
+  f.text().then(t => { q.value = t.trim(); grow(); q.focus(); });
 }
-function pickTabsOff() { document.querySelectorAll(".tab").forEach(t => t.setAttribute("aria-selected", String(t.dataset.ex === "blank"))); }
-$("q").addEventListener("input", pickTabsOff);
-$("q").addEventListener("keydown", e => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) run(); });
-$("go").onclick = run;
-$("reset").onclick = async () => {
+$("reset").onclick = () => {
   if (sessionId) fetch("/clear?session_id=" + encodeURIComponent(sessionId), { method: "POST" });
-  sessionId = null; pending = ""; $("thread").innerHTML = ""; pickExample("blank");
+  sessionId = null; pending = "";
+  document.querySelectorAll(".turn").forEach(t => t.remove());
+  q.value = ""; grow(); window.scrollTo({ top: 0, behavior: "smooth" }); q.focus();
 };
 
 // --- helpers ---
 const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-function md(text) {
-  const box = el("div");
-  box.innerHTML = DOMPurify.sanitize(marked.parse(text));
-  box.querySelectorAll("a").forEach(a => { a.target = "_blank"; a.rel = "noopener"; a.title = a.href; });
-  // Hovering a superscript shows the quoted release-note line from the Sources list.
-  const quotes = {};
-  box.querySelectorAll("ol li").forEach(li => { const a = li.querySelector("a"), q = li.querySelector("em");
-    if (a && q) quotes[a.getAttribute("href")] = q.textContent; });
-  box.querySelectorAll("a").forEach(a => { if (!a.closest("ol") && quotes[a.getAttribute("href")]) a.title = quotes[a.getAttribute("href")]; });
-  // The part only research can add gets a visible heading.
-  box.querySelectorAll("p").forEach(p => { if (/^What changes on the way:?$/i.test(p.textContent.trim())) p.className = "changes"; });
-  return box.innerHTML;
+const plural = (n, w) => `${n} ${n === 1 ? w : w.endsWith("y") ? w.slice(0, -1) + "ies" : w + "s"}`;
+function assistant(turn) {
+  const m = el("div", "msg turn");
+  const b = el("div", "body"); m.append(b); turn.append(m);
+  return b;
 }
 
-// --- verdict table (instant, from /triage) ---
-function stateOf(p) {
-  if (p.advisories_affecting_pin === 0) return ["s-ok", "No known advisories"];
-  if (p.full_fix_on_same_line) return ["s-mid", "Fix on your line"];
-  if (p.best_partial_on_line) return ["s-bad", "Partial fix on your line"];
-  return ["s-bad", "Needs a bigger jump"];
-}
-function verdictTable(t) {
-  const rows = [];
-  for (const p of t.checked_pins) {
-    const [cls, word] = stateOf(p);
-    const line = p.full_fix_on_same_line
-      ? `<span class="ver">${esc(p.full_fix_on_same_line)}</span><span class="sub">clears all</span>`
-      : p.best_partial_on_line
-        ? `<span class="ver">${esc(p.best_partial_on_line.version)}</span><span class="sub">clears ${p.best_partial_on_line.cleared} of ${p.advisories_affecting_pin}${p.best_partial_on_line.newly_introduced ? `, adds ${p.best_partial_on_line.newly_introduced} new` : ""}</span>`
-        : p.advisories_affecting_pin ? `<span class="sub">nothing on ${esc(p.line)}.x helps</span>` : `<span class="sub">—</span>`;
-    const full = p.advisories_affecting_pin === 0 ? `<span class="sub">stay on ${esc(p.pinned)}</span>`
-      : p.smallest_full_fix ? `<span class="ver">${esc(p.smallest_full_fix.version)}</span><span class="jump">${esc(p.smallest_full_fix.jump)}</span>`
-      : `<span class="sub">none in snapshot</span>`;
-    const asked = (p.asked_advisories || []).map(a => `<span class="sub">${esc(a.id)}: ${a.affected ? "affects this pin" : "does not affect this pin"}</span>`).join("");
-    const unfix = p.unfixable.length ? `<span class="sub">${p.unfixable.length} with no fix yet</span>` : "";
-    rows.push(`<tr><td class="pkg">${esc(p.package)}==${esc(p.pinned)}</td><td><span class="state ${cls}">${word}</span>${asked}</td>
-      <td class="num">${p.advisories_affecting_pin}${unfix}</td><td>${line}</td><td>${full}</td></tr>`);
+// --- instant scan (code only, from /triage) ---
+const JUMP = { patch: "small jump, low risk", minor: "minor jump: new features, possible deprecations", major: "major jump: expect breaking changes" };
+function card(p) {
+  const n = p.advisories_affecting_pin;
+  let cls, word; const lines = [];
+  if (n === 0) { cls = "s-ok"; word = "No known vulnerabilities"; lines.push(`Nothing in the snapshot affects this version. Stay on <span class="v">${esc(p.pinned)}</span>.`); }
+  else {
+    if (p.full_fix_on_same_line) { cls = "s-mid"; word = "Fixable on your version line"; }
+    else if (p.best_partial_on_line) { cls = "s-bad"; word = "Only partly fixable on your line"; }
+    else { cls = "s-bad"; word = "Needs a bigger upgrade"; }
+    const full = p.smallest_full_fix;
+    if (full) lines.push(`Fix everything: upgrade to <span class="v">${esc(full.version)}</span> <span class="why">(${esc(JUMP[full.jump] || full.jump)})</span>`);
+    else lines.push(`No release in the snapshot fixes everything yet.`);
+    if (p.full_fix_on_same_line && (!full || full.version !== p.full_fix_on_same_line))
+      lines.push(`On your ${esc(p.line)}.x line: <span class="v">${esc(p.full_fix_on_same_line)}</span> fixes all of them`);
+    else if (p.best_partial_on_line)
+      lines.push(`If you must stay on ${esc(p.line)}.x: <span class="v">${esc(p.best_partial_on_line.version)}</span> fixes ${p.best_partial_on_line.cleared} of ${n}, leaving ${p.best_partial_on_line.remaining}`);
+    else if (!p.full_fix_on_same_line) lines.push(`No release on your ${esc(p.line)}.x line fixes these.`);
+    if (p.unfixable?.length) lines.push(`${plural(p.unfixable.length, "advisory")} with no fix released yet`);
   }
-  for (const u of t.unpinned_or_unknown) rows.push(`<tr><td class="pkg">${esc(u.package)}${esc(u.spec)}</td><td><span class="state s-none">Not checked</span></td><td colspan="3"><span class="sub">${esc(u.why)}</span></td></tr>`);
-  for (const n of t.not_covered) rows.push(`<tr><td class="pkg">${esc(n)}</td><td><span class="state s-none">Not checked</span></td><td colspan="3"><span class="sub">not in the PatchWise snapshot; not checked does not mean safe</span></td></tr>`);
-  if (!rows.length) return null;
-  const n = t.checked_pins.length;
-  const box = el("section", "verdicts");
-  box.innerHTML = `<header><p class="label">Verdicts</p><small>computed in code from OSV ranges and PyPI releases · ${n} pin${n === 1 ? "" : "s"} checked</small></header>
-    <div class="scroll"><table><thead><tr><th>Pin</th><th>Status</th><th>Advisories</th><th>Best on your line</th><th>Smallest full fix</th></tr></thead>
-    <tbody>${rows.join("")}</tbody></table></div>`;
-  return box;
+  const path = track(p);
+  for (const a of p.asked_advisories || []) lines.unshift(`<b>${esc(a.id)}</b> ${a.affected ? "affects this version" : "does not affect this version"}`);
+  const advs = (p.advisories || []).map(a => `<li><a href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.id)}</a> <span class="why">${esc(a.published)}</span> — ${esc(a.summary)}</li>`).join("");
+  return `<div class="card ${cls}"><div class="row"><span class="pkg">${esc(p.package)} ${esc(p.pinned)}</span><span class="pill">${word}</span>
+    <span class="count">${plural(n, "advisory")}</span></div>${path}<ul>${lines.map(l => `<li>${l}</li>`).join("")}</ul>
+    ${advs ? `<details class="adv"><summary>Show the ${plural(n, "advisory")} this is based on</summary><ol>${advs}</ol></details>` : ""}</div>`;
+}
+// Upgrade path: your version -> best option on your line -> smallest full fix, with the jump size between.
+function track(p) {
+  const n = p.advisories_affecting_pin, full = p.smallest_full_fix;
+  const stops = [{ v: p.pinned, cls: n ? "s-bad" : "s-ok", note: n ? `you · ${n} open` : "you · clean" }];
+  if (n) {
+    if (p.full_fix_on_same_line && (!full || full.version !== p.full_fix_on_same_line))
+      stops.push({ v: p.full_fix_on_same_line, cls: "s-ok", note: "all fixed", seg: "line", label: `${p.line}.x` });
+    else if (p.best_partial_on_line)
+      stops.push({ v: p.best_partial_on_line.version, cls: "s-mid", note: `${p.best_partial_on_line.remaining} still open`, seg: "line", label: `stay on ${p.line}.x` });
+    if (full) stops.push({ v: full.version, cls: "s-ok", note: "all fixed", seg: full.jump, label: `${full.jump} jump` });
+  }
+  if (stops.length < 2) return "";
+  return `<div class="track">${stops.map((s, i) => (i ? `<span class="seg j-${s.seg}"><em>${esc(s.label)}</em></span>` : "") +
+    `<span class="stop ${s.cls}"><i></i><b>${esc(s.v)}</b><small>${esc(s.note)}</small></span>`).join("")}</div>`;
+}
+function scanPanel(t) {
+  const skipped = [...t.not_covered.map(x => [x, "not one of the 6 packages PatchWise covers"]),
+                   ...t.unpinned_or_unknown.map(u => [u.package + (u.spec || ""), u.why])];
+  if (!t.checked_pins.length && !skipped.length) return null;
+  const panel = el("section", "panel");
+  const pins = t.checked_pins, total = pins.reduce((a, p) => a + p.advisories_affecting_pin, 0);
+  const major = pins.filter(p => p.advisories_affecting_pin && p.smallest_full_fix?.jump === "major").length;
+  const onLine = pins.filter(p => p.advisories_affecting_pin && p.full_fix_on_same_line).length;
+  panel.innerHTML = `<h2>Version check <span class="cmd"><b>$</b> patchwise scan --pins ${pins.length + skipped.length}</span></h2>
+    ${pins.length ? `<div class="score">
+      <div class="${total ? "hot" : "cool"}"><b>${total}</b><span>${total === 1 ? "advisory affects" : "advisories affect"} your pins</span></div>
+      <div class="${onLine ? "cool" : ""}"><b>${onLine}/${pins.length}</b><span>fully fixable on your current line</span></div>
+      <div class="${major ? "warm" : "cool"}"><b>${major}</b><span>need a major jump to clear everything</span></div>
+      <div><b>${skipped.length}</b><span>not checked</span></div></div>` : ""}
+    <div class="cards">${t.checked_pins.map(card).join("")}</div>
+    ${skipped.length ? `<div class="notchecked" style="margin-top:10px"><b>Not checked:</b> ${skipped.map(([n, w]) => `<code>${esc(n)}</code> <span class="why">(${esc(w)})</span>`).join(", ")}.
+      Not checked does <b>not</b> mean safe.</div>` : ""}`;
+  return panel;
+}
+
+// --- report: package sections collapse, sources grouped and folded ---
+function report(text) {
+  const tmp = el("div");
+  tmp.innerHTML = DOMPurify.sanitize(marked.parse(text));
+  tmp.querySelectorAll("a").forEach(a => { a.target = "_blank"; a.rel = "noopener"; });
+  // Sources list -> quotes for hover, then grouped
+  const quotes = {};
+  let srcOl = null;
+  [...tmp.children].forEach((c, i, arr) => { if (c.tagName === "P" && /^sources$/i.test(c.textContent.trim()) && arr[i + 1]?.tagName === "OL") { srcOl = arr[i + 1]; c.remove(); } });
+  const groups = { "Release notes": [], "Advisories": [], "PyPI releases": [] };
+  if (srcOl) {
+    [...srcOl.children].forEach((li, i) => {
+      const a = li.querySelector("a"), em = li.querySelector("em"); if (!a) return;
+      const n = i + 1, href = a.getAttribute("href");
+      if (em) quotes[href] = em.textContent;
+      a.textContent = a.textContent.replace(/: release on PyPI; affected\/fixed status computed by PatchWise from OSV advisory ranges/, " on PyPI");
+      const g = /release notes/i.test(a.textContent) ? "Release notes" : /pypi\.org/.test(href) ? "PyPI releases" : "Advisories";
+      groups[g].push(`<li value="${n}">${a.outerHTML}${em ? `<em>${esc(em.textContent)}</em>` : ""}</li>`);
+    });
+    srcOl.remove();
+  }
+  tmp.querySelectorAll("a").forEach(a => {
+    if (/^\d+$/.test(a.textContent.trim())) { a.className = "cite"; a.title = quotes[a.getAttribute("href")] || a.getAttribute("href"); }
+  });
+  tmp.querySelectorAll("p").forEach(p => { if (/^What changes on the way:?$/i.test(p.textContent.trim())) p.className = "changes"; });
+  // Split into bottom line + one collapsible section per package (h3)
+  const out = el("section", "panel report");
+  out.innerHTML = `<h2>Research report</h2>`;
+  const bottom = el("div", "bottom"); out.append(bottom);
+  let sec = null, first = true;
+  for (const c of [...tmp.children]) {
+    if (c.tagName === "H3") {
+      sec = el("details", "pkgsec"); if (first) sec.open = true; first = false;
+      const s = el("summary"); s.textContent = c.textContent; sec.append(s, el("div", "in")); out.append(sec);
+    } else (sec ? sec.querySelector(".in") : bottom).append(c);
+  }
+  const total = Object.values(groups).reduce((a, g) => a + g.length, 0);
+  if (total) {
+    const d = el("details", "sources");
+    d.innerHTML = `<summary>${plural(total, "source")}: ${Object.entries(groups).filter(([, g]) => g.length).map(([k, g]) => plural(g.length, { "Release notes": "release note", "Advisories": "advisory", "PyPI releases": "PyPI release" }[k])).join(" · ")}. Hover a number to preview the quote.</summary>` +
+      Object.entries(groups).filter(([, g]) => g.length).map(([k, g]) => `<div class="srcgroup"><h4>${k}</h4><ol>${g.join("")}</ol></div>`).join("");
+    out.append(d);
+  }
+  return out;
 }
 
 // --- trace ---
@@ -302,7 +397,7 @@ function trace(calls) {
   const researchers = agents.filter(a => a.startsWith("researcher:")).length;
   d.innerHTML = `<summary>How this answer was made: ${calls.length} tool calls · lead${researchers ? ` → ${researchers} researcher${researchers > 1 ? "s" : ""} in parallel` : ""}${agents.includes("writer") ? " → writer" : ""}</summary>`;
   const lanes = el("div", "lanes");
-  const role = { lead: "plans, clarifies, sends researchers", writer: "writes the answer; code checks every source", code: "backup: pulls release notes if a researcher fails" };
+  const role = { lead: "plans, clarifies, sends researchers", writer: "writes the answer; code checks every source", code: "backup steps if a model call is rate-limited" };
   for (const a of agents) {
     const lane = el("div", "lane", `<h4>${esc(a)}<small>${a.startsWith("researcher:") ? "one package, fresh context" : role[a] || ""}</small></h4>`);
     for (const c of calls.filter(c => c.agent === a)) {
@@ -318,34 +413,41 @@ function trace(calls) {
   return d;
 }
 
-// --- run ---
-async function run() {
-  const text = $("q").value.trim();
-  if (!text) { $("q").focus(); return; }
-  $("go").disabled = true;
-  const turn = el("article", "turn");
-  turn.append(el("div", "asked", esc(text)));
-  $("thread").prepend(turn);
-  turn.scrollIntoView({ behavior: "smooth", block: "start" });
+// --- send ---
+function setBusy(b) { busy = b; $("go").disabled = b; document.querySelectorAll(".ex").forEach(s => s.disabled = b); }
+async function send(raw) {
+  const text = (raw || "").trim();
+  if (!text || busy) { q.focus(); return; }
+  setBusy(true); q.value = ""; grow();
+  const thread = $("thread");
+  const u = el("div", "msg user turn");
+  u.append(el("div", "bubble" + (/==|\n/.test(text) ? " code" : ""), esc(text)));
+  thread.append(u);
+  const body = assistant(thread);
+  u.scrollIntoView({ behavior: "smooth", block: "start" });
 
-  const prog = el("div", "progress", `<span class="pulse"></span><span class="what">Reading your pins…</span><span class="t">0s</span>`);
-  turn.append(prog);
+  const prog = el("div", "progress", `<span class="radar"></span><span><span class="what">Checking your versions…</span> <span class="t">0s</span><br><span class="sub"></span></span>`);
+  body.append(prog);
   const t0 = Date.now();
   const tick = setInterval(() => { prog.querySelector(".t").textContent = Math.round((Date.now() - t0) / 1000) + "s"; }, 500);
 
   const chat = fetch("/chat", { method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ message: text, session_id: sessionId }) }).then(r => r.json());
-
   try {
     const t = await fetch("/triage", { method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ message: (pending ? pending + "\n" : "") + text }) }).then(r => r.json());
-    const table = verdictTable(t);
-    if (table) turn.insertBefore(table, prog);
-    const busy = t.checked_pins.filter(p => p.advisories_affecting_pin > 0).map(p => p.package);
-    prog.querySelector(".what").textContent = busy.length
-      ? `Researching ${busy.join(", ")} in parallel, reading release notes…`
-      : "Checking with the lead…";
-  } catch (e) { /* the verdict table is a bonus; /chat still answers */ }
+    const panel = scanPanel(t);
+    if (panel) body.insertBefore(panel, prog);
+    const pk = t.checked_pins.filter(p => p.advisories_affecting_pin > 0).map(p => p.package);
+    if (pk.length) {
+      prog.className = "panel";
+      prog.innerHTML = `<h2>Research in progress <span class="cmd"><span class="t">0s</span></span></h2><div class="agents">
+        <div class="ag"><span class="radar"></span><span class="mono">lead</span><span class="why">sent ${plural(pk.length, "researcher")}, in parallel</span></div>
+        ${pk.map(k => `<div class="ag"><span class="radar"></span><span class="mono">researcher:${esc(k)}</span><span class="why">reading release notes between your pin and the fix</span></div>`).join("")}
+        <div class="ag dim"><span class="wait"></span><span class="mono">writer</span><span class="why">waits for the findings, then every citation is checked</span></div></div>
+        <p class="why" style="margin:10px 0 0">Usually 40–90 s, up to ~2.5 min when the model is busy. The version check above is already final.</p>`;
+    } else prog.querySelector(".what").textContent = "The lead is reading your question…";
+  } catch (e) { /* the scan is a bonus; /chat still answers */ }
 
   try {
     const data = await chat;
@@ -353,21 +455,18 @@ async function run() {
     const clarify = data.tool_calls.length > 0 && !data.tool_calls.some(c => c.agent === "writer");
     if (clarify) {
       pending = (pending ? pending + "\n" : "") + text;
-      const q = el("div", "question", `<p class="label">One question first</p>${md(data.response)}`);
-      turn.insertBefore(q, prog);
-      pickTabsOff(); $("q").value = ""; $("q").placeholder = "Your answer, e.g. django==4.2.10";
+      const qp = el("div", "panel question", `<h2>One detail first</h2>${DOMPurify.sanitize(marked.parse(data.response))}`);
+      body.insertBefore(qp, prog);
+      q.placeholder = "Your answer, e.g. django==4.2.10";
     } else {
-      pending = "";
-      turn.insertBefore(el("section", "report", md(data.response)), prog);
+      pending = ""; q.placeholder = "Ask a follow-up, or paste another requirements.txt";
+      body.insertBefore(report(data.response), prog);
     }
-    if (data.tool_calls.length) turn.insertBefore(trace(data.tool_calls), prog);
+    if (data.tool_calls.length) body.insertBefore(trace(data.tool_calls), prog);
   } catch (e) {
-    turn.insertBefore(el("p", "error", "The request failed: " + esc(e.message || e)), prog);
+    body.insertBefore(el("p", "error", "The request failed: " + esc(e.message || e)), prog);
   } finally {
-    clearInterval(tick);
-    prog.remove();
-    $("go").disabled = false;
-    $("q").focus();
+    clearInterval(tick); prog.remove(); setBusy(false); q.focus();
   }
 }
 </script>

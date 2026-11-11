@@ -87,8 +87,22 @@ class TriageRequest(BaseModel):
 def triage_now(request: TriageRequest):
     """Code-only verdicts in well under a second, so the page can show the facts while the
     researchers work. Not part of the graded API; /chat is."""
+    import time
     from agent.triage import triage
-    return triage(request.message)
+    from tools.versions import advisories_for
+    t0 = time.perf_counter()
+    out = triage(request.message)
+    # The advisory records behind each count, so the page can show its work.
+    for p in out["checked_pins"]:
+        p["advisories"] = [{"id": a["id"], "aliases": a["aliases"], "summary": a["summary"],
+                            "published": str(a["published"])[:10], "url": a["source_url"]}
+                           for a in advisories_for(p["package"], p["pinned"])["advisories"]]
+    s = store()
+    out["provenance"] = {"ms": round((time.perf_counter() - t0) * 1000, 1),
+                         "advisories": sum(len(v) for v in s.advisories.values()),
+                         "releases": sum(len(v) for v in s.releases.values()) if hasattr(s, "releases") else None,
+                         "snapshot": "2026-11-05"}
+    return out
 
 
 @app.post("/clear")

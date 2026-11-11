@@ -27,13 +27,19 @@ release notes for what changes, and says plainly what it couldn't check.
 
 ## How to use it
 
-1. Open the app. Paste a `requirements.txt`, drop the file onto the box, or ask about one package
-   and one CVE. The tabs above the box hold ready-made examples.
-2. A **verdict table** appears within about a second. It's computed in code: affected or not,
-   any fix on your line, and the smallest full fix.
-3. The **cited report** follows, usually in 40–90 seconds. It can take up to about 2.5 minutes
-   when Vertex AI is rate-limiting. Superscript numbers link to the exact
-   lines of the changelog, the OSV advisory, or the PyPI release.
+1. Open the app. It works like a chat: paste a `requirements.txt` into the box at the bottom,
+   attach or drop the file, or ask about one package and one CVE. To try it quickly, click one of
+   the 4 example cards in the welcome message.
+2. A **version check** appears in well under a second. It's computed in code with no AI: one card
+   per package, saying whether it's affected, the smallest full fix with how risky the jump is,
+   and the best option on your current line. Packages outside the 6 covered ones are listed
+   separately as **not checked**. Open "Show the N advisories" on any card to see the actual OSV
+   records behind the count.
+3. The **research report** follows, usually in 40–90 seconds. It can take up to about 2.5 minutes
+   when Vertex AI is rate-limiting. It opens with a plain-language bottom line, then one
+   collapsible section per package that leads with **What changes on the way**. Superscript
+   numbers link to the exact changelog lines, OSV advisory or PyPI release; hover one to preview
+   the quoted text. The full source list is folded at the end, grouped by type.
 4. If the question is vague ("is my stack safe?", or no versions given), PatchWise asks for your
    pins first. Reply in the same box and it combines your answer with what you said before.
 5. Open **"How this answer was made"** to see every tool call, grouped by the agent that made it.
@@ -47,7 +53,7 @@ package in your file is listed as **not checked**, which does **not** mean it's 
 
 ```
             ┌─────────────── triage (code) ───────────────┐
- message ──▶│ parse pins · affected? · same-line fix ·     │──▶ verdict table (/triage, ~0.1 s)
+ message ──▶│ parse pins · affected? · same-line fix ·     │──▶ version check (/triage, <0.1 s)
             │ best partial · smallest full fix             │
             └──────────────────────┬───────────────────────┘
                                    ▼
@@ -178,8 +184,8 @@ The full, unedited text of both answers for every query is in
 [`samples/outputs.md`](samples/outputs.md). It was generated on 2026-11-11.
 
 The times below were measured with no throttling. When Vertex AI rate-limits the project,
-retries and backoff can make a report take up to about **2.5 minutes**. The instant verdict
-table is not affected.
+retries and backoff can make a report take up to about **2.5 minutes**. The instant version
+check is not affected.
 
 ### 1. One CVE, one pin
 
@@ -248,7 +254,7 @@ urllib3==2.2.1
 | urllib3 2.2.1 | 9 | **2.8.0** | **2.8.0** (minor) |
 
 **Source:** `data/advisories.jsonl` and `data/releases.jsonl`. The same figures appear in the
-page's instant verdict table, computed by `agent/triage.py`.
+page's instant version check, computed by `agent/triage.py`.
 
 | | No tools (8 s) | PatchWise (65 s, 33 tool calls; 3 researchers in parallel) |
 |---|---|---|
@@ -280,7 +286,7 @@ lookups, and no code fallback. The full text is in
 
 So the version data answers *whether* and *to what*. Retrieval answers **what will break when
 you do it**, which is the question `pip-audit` and the plain model can't answer. The page
-reflects this: the instant table shows the verdicts, and the report leads with **What changes on
+reflects this: the instant version check shows the verdicts, and the report leads with **What changes on
 the way**. Each changelog source shows a verbatim quote of the cited lines, which code takes from
 the passage text, not the model.
 
@@ -344,4 +350,5 @@ build/              offline snapshot builders
 data/               the snapshot (advisories, releases, changelogs, LanceDB index)
 tests/              pytest
 scripts/            check_packages.py (how the 6 packages were chosen)
+samples/            full text of the README comparisons (agent vs no tools, and the no-retrieval ablation)
 ```

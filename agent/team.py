@@ -353,7 +353,9 @@ WRITER_INSTRUCTIONS = """\
 You write PatchWise's answer for an engineer, in markdown, using ONLY the triage table and the
 researcher findings you're given.
 
-- Start with a 1-3 sentence bottom line.
+- Start with a 1-3 sentence bottom line in plain words, for a developer who isn't a security
+  specialist: what to upgrade to and how risky the jump is. Explain any jargon in a few words
+  the first time (e.g. "denial of service (a request can crash or stall the app)").
 - Then one section per package: "### <package>==<pinned>", then exactly this layout:
   **Verdict:** ONE line: affected by N advisories · upgrade to X (jump size) · if there's a
   same-line partial fix: "on your line: Y clears A, leaves B". Cite it.
@@ -362,6 +364,7 @@ researcher findings you're given.
   from the release notes, each naming the API or setting and the version it changed in, cited.
   **Check before upgrading:** 1-3 bullets, each a concrete thing to grep for or test, cited.
   **Can't tell from the data:** one line.
+  Put each bold label on its own line with a blank line before it.
 - Pins with 0 advisories: one line saying no advisories in the snapshot affect them.
 - Unusable input (ranges, unknown versions, uncovered packages): a short "Not checked" list with why.
   Then say plainly that "not checked" does NOT mean safe, name the covered packages (django,
@@ -418,16 +421,27 @@ def apply_citations(text: str, run: Run) -> tuple[str, dict]:
     refs: list[tuple[int, str, str, str]] = []  # (number, label, url, quote)
     dropped: list[str] = []
 
+    def bare(part: str) -> tuple[str, str] | None:
+        """The model sometimes drops the S:/A:/V: prefix. Accept a bare key only if it resolves."""
+        v = part.strip()
+        for kind in ("S", "A", "V"):
+            if resolve(kind, v, run):
+                return kind, v
+        return None
+
     def sub(m: re.Match) -> str:
-        parts = re.split(r"[;,]\s*(?=[SAV]:)", m.group(1))
-        keys = [KEY.match(p) for p in parts]
+        parts = re.split(r"[;,]\s*", m.group(1))
+        keys = []
+        for p in parts:
+            k = KEY.match(p)
+            keys.append((k.group(1), k.group(2)) if k else bare(p))
         if not all(keys):
             return m.group(0)  # ordinary brackets, not citations
         out = []
-        for k in keys:
-            hit = resolve(k.group(1), k.group(2), run)
+        for kind, value in keys:
+            hit = resolve(kind, value, run)
             if hit is None:
-                dropped.append(f"{k.group(1)}:{k.group(2)}")
+                dropped.append(f"{kind}:{value}")
                 continue
             if hit[1] not in {r[2] for r in refs}:
                 refs.append((len(refs) + 1, hit[0], hit[1], hit[2] if len(hit) > 2 else ""))
@@ -435,6 +449,11 @@ def apply_citations(text: str, run: Run) -> tuple[str, dict]:
             out.append(f"[{n}]({hit[1]})")
         return "".join(out)
 
+    # Each section label starts its own paragraph, even if the model ran it into the line above.
+    text = re.sub(r"[ \t]*\n?[ \t]*(\*\*(?:Verdict|What changes on the way|Check before upgrading|Can't tell from the data):?\*\*:?)",
+                  r"\n\n\1", text)
+    text = re.sub(r"(\*\*(?:What changes on the way|Check before upgrading|Can't tell from the data):?\*\*:?)[ \t]*\n(?=\s*[*-] )",
+                  r"\1\n\n", text)
     body = BRACKET.sub(sub, text)
     if refs:
         body += "\n\n**Sources**\n" + "\n".join(
